@@ -318,6 +318,7 @@ fun QuizScreen() {
 
     var selectedAnswer by remember { mutableStateOf<String?>(null) }
     var submitted by remember { mutableStateOf(false) }
+    var score by remember {     mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -378,6 +379,9 @@ fun QuizScreen() {
         Button(
             onClick = {
                 submitted = true
+                if (selectedAnswer == correctAnswer) {
+                    score++
+                }
             },
             enabled = selectedAnswer != null,
             modifier = Modifier
@@ -411,6 +415,14 @@ fun QuizScreen() {
                         Color(0xFFC62828)
                 )
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "Score: $score",
+                style = MaterialTheme.typography.bodyLarge
+            )
+
         }
     }
 }
