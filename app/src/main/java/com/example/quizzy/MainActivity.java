@@ -31,19 +31,13 @@ public class MainActivity extends AppCompatActivity {
         btnMedium = findViewById(R.id.btnMedium);
         btnHard = findViewById(R.id.btnHard);
 
-        // ============================================================
         // TEMPORARY TEST DATA - FOR TESTING PURPOSES ONLY
         // Uncomment the lines below to test QuizActivity directly
         // without needing the backend or difficulty buttons.
-        // Remember to comment them back out before final release.
-        // ============================================================
-        // List<Question> testQuestions = new ArrayList<>();
-        // testQuestions.add(new Question("What is 2 + 2?", "3", "4", "5", "6", "4"));
-        // testQuestions.add(new Question("What is 10 - 3?", "5", "6", "7", "8", "7"));
-        // QuizRepository.currentQuizQuestions = testQuestions;
-        // Intent intent = new Intent(MainActivity.this, QuizActivity.class);
-        // startActivity(intent);
-        // ============================================================
+         List<Question> testQuestions = ApiService.generateQuestionsFromPrompt("test", "easy"); // In level, you can select easy, medium or difficult. Change the value as needed.
+         QuizRepository.currentQuizQuestions = testQuestions;
+         Intent intent = new Intent(MainActivity.this, QuizActivity.class);
+         startActivity(intent);
 
         btnEasy.setOnClickListener(v -> startQuizWithBackendPrompt(1, "easy"));
         btnMedium.setOnClickListener(v -> startQuizWithBackendPrompt(2, "medium"));
