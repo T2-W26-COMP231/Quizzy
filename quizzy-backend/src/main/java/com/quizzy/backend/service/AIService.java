@@ -19,6 +19,10 @@ public class AIService {
     private String apiKey;
 
     public String generateQuestionsJson(String prompt) throws Exception {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new RuntimeException("OpenRouter API key is missing. Check your environment variable and application.properties.");
+        }
+
         URL url = new URL("https://openrouter.ai/api/v1/chat/completions");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
@@ -31,7 +35,10 @@ public class AIService {
 
         String fullPrompt = """
                 Generate exactly 5 multiple-choice math questions.
-                Return ONLY valid JSON.
+                Return ONLY raw JSON.
+                Do not use markdown.
+                Do not use triple backticks.
+                Do not add explanations.
                 Use this exact format:
                 {
                   "questions": [
@@ -66,6 +73,7 @@ public class AIService {
         }
 
         int code = conn.getResponseCode();
+
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(
                         code >= 200 && code < 300 ? conn.getInputStream() : conn.getErrorStream(),
@@ -85,9 +93,23 @@ public class AIService {
         }
 
         JSONObject json = new JSONObject(response.toString());
-        return json.getJSONArray("choices")
+
+        String content = json.getJSONArray("choices")
                 .getJSONObject(0)
                 .getJSONObject("message")
-                .getString("content");
+                .getString("content")
+                .trim();
+
+        if (content.startsWith("```json")) {
+            content = content.substring(7).trim();
+        }
+        if (content.startsWith("```")) {
+            content = content.substring(3).trim();
+        }
+        if (content.endsWith("```")) {
+            content = content.substring(0, content.length() - 3).trim();
+        }
+
+        return content;
     }
 }
