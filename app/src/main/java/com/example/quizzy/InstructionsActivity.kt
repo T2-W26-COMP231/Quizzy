@@ -7,24 +7,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,20 +20,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -63,7 +47,6 @@ class InstructionsActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val gradeLevel = intent.getIntExtra("GRADE_LEVEL", 3)
-        val gradeName = intent.getStringExtra("GRADE_NAME") ?: "Grade 3"
 
         setContent {
             MaterialTheme {
@@ -73,7 +56,6 @@ class InstructionsActivity : ComponentActivity() {
                 ) {
                     InstructionsScreen(
                         gradeLevel = gradeLevel,
-                        gradeName = gradeName,
                         onBackClick = { finish() }
                     )
                 }
@@ -91,23 +73,24 @@ data class DisplayQuestion(
 @Composable
 fun InstructionsScreen(
     gradeLevel: Int,
-    gradeName: String,
     onBackClick: () -> Unit
 ) {
-    var instructionText by remember { mutableStateOf("") }
-    var questions by remember { mutableStateOf<List<DisplayQuestion>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
-    var currentQuestionIndex by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(gradeLevel) {
         isLoading = true
         errorMessage = ""
-        currentQuestionIndex = 0
 
         try {
-            instructionText = fetchInstructionFromBackend(gradeLevel)
-            questions = fetchGeneratedQuizFromBackend(buildPromptForGrade(gradeLevel))
+            val instructionText = fetchInstructionFromBackend(gradeLevel)
+            Log.d(TAG, "Retrieved instruction text: $instructionText")
+
+            val prompt = buildPromptForGrade(gradeLevel)
+            Log.d(TAG, "Generated questions prompt: $prompt")
+
+            val questions = fetchGeneratedQuizFromBackend(prompt)
+            logQuestionsToConsole(questions)
         } catch (e: Exception) {
             errorMessage = e.message ?: "Something went wrong."
             Log.e(TAG, "Screen load failed", e)
@@ -122,309 +105,40 @@ fun InstructionsScreen(
             .background(Color(0xFFFFFBF2))
             .statusBarsPadding()
             .navigationBarsPadding()
+            .padding(20.dp)
     ) {
+        Text(
+            text = "← Back",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF5A4A3B),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .clickable { onBackClick() }
+                .padding(vertical = 8.dp, horizontal = 4.dp)
+        )
+
         when {
             isLoading -> {
-                LoadingContent(onBackClick = onBackClick)
+                CircularProgressIndicator(
+                    color = Color(0xFFA874FF),
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
 
             errorMessage.isNotEmpty() -> {
-                ErrorContent(
-                    errorMessage = errorMessage,
-                    onBackClick = onBackClick
+                Text(
+                    text = errorMessage,
+                    color = Color.Red,
+                    fontSize = 16.sp,
+                    modifier = Modifier.align(Alignment.Center)
                 )
             }
 
             else -> {
-                MainContent(
-                    gradeName = gradeName,
-                    instructionText = instructionText,
-                    questions = questions,
-                    currentQuestionIndex = currentQuestionIndex,
-                    onBackClick = onBackClick,
-                    onPreviousClick = {
-                        if (currentQuestionIndex > 0) {
-                            currentQuestionIndex--
-                        }
-                    },
-                    onNextClick = {
-                        if (currentQuestionIndex < questions.lastIndex) {
-                            currentQuestionIndex++
-                        }
-                    }
-                )
+                // intentionally empty
             }
         }
-    }
-}
-
-@Composable
-fun LoadingContent(onBackClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.Start
-    ) {
-        BackText(onBackClick = onBackClick)
-
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = Color(0xFFA874FF))
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Loading...",
-                    fontSize = 18.sp,
-                    color = Color(0xFF7B6A58)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ErrorContent(
-    errorMessage: String,
-    onBackClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.Start
-    ) {
-        BackText(onBackClick = onBackClick)
-
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = errorMessage,
-                color = Color.Red,
-                fontSize = 16.sp,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-fun MainContent(
-    gradeName: String,
-    instructionText: String,
-    questions: List<DisplayQuestion>,
-    currentQuestionIndex: Int,
-    onBackClick: () -> Unit,
-    onPreviousClick: () -> Unit,
-    onNextClick: () -> Unit
-) {
-    val scrollState = rememberScrollState()
-    val scope = rememberCoroutineScope()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
-            .verticalScroll(scrollState)
-    ) {
-        BackText(onBackClick = onBackClick)
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        Text(
-            text = gradeName,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF4C4035)
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        InstructionCard(instructionText = instructionText)
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        if (questions.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-            ) {
-                Text(
-                    text = "No questions available.",
-                    fontSize = 18.sp,
-                    color = Color(0xFF7B6A58),
-                    modifier = Modifier.padding(20.dp)
-                )
-            }
-        } else {
-            val currentQuestion = questions[currentQuestionIndex]
-
-            Text(
-                text = "Question ${currentQuestionIndex + 1} of ${questions.size}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFFA874FF)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            QuestionCard(question = currentQuestion)
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(
-                    onClick = {
-                        onPreviousClick()
-                        scope.launch { scrollState.animateScrollTo(0) }
-                    },
-                    enabled = currentQuestionIndex > 0,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFA874FF),
-                        disabledContainerColor = Color(0xFFE7D7FF)
-                    )
-                ) {
-                    Text(
-                        text = "Previous",
-                        fontSize = 16.sp
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        onNextClick()
-                        scope.launch { scrollState.animateScrollTo(0) }
-                    },
-                    enabled = currentQuestionIndex < questions.lastIndex,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFA874FF),
-                        disabledContainerColor = Color(0xFFE7D7FF)
-                    )
-                ) {
-                    Text(
-                        text = if (currentQuestionIndex == questions.lastIndex) "Done" else "Next",
-                        fontSize = 16.sp
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-@Composable
-fun BackText(onBackClick: () -> Unit) {
-    Text(
-        text = "← Back",
-        fontSize = 18.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = Color(0xFF5A4A3B),
-        modifier = Modifier
-            .clickable { onBackClick() }
-            .padding(vertical = 8.dp, horizontal = 4.dp)
-    )
-}
-
-@Composable
-fun InstructionCard(instructionText: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Text(
-                text = "Instructions",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF5A4A3B)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = instructionText.ifBlank { "No instructions available." },
-                fontSize = 18.sp,
-                color = Color(0xFF4C4035),
-                lineHeight = 27.sp
-            )
-        }
-    }
-}
-
-@Composable
-fun QuestionCard(question: DisplayQuestion) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Text(
-                text = question.questionText,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF4C4035),
-                lineHeight = 30.sp
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            question.options.forEachIndexed { index, option ->
-                OptionRow(
-                    label = ('A' + index).toString(),
-                    text = option
-                )
-                if (index != question.options.lastIndex) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun OptionRow(
-    label: String,
-    text: String
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = Color(0xFFF8F4FF),
-                shape = RoundedCornerShape(14.dp)
-            )
-            .padding(horizontal = 14.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Text(
-            text = "$label.",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFFA874FF)
-        )
-
-        Text(
-            text = " $text",
-            fontSize = 18.sp,
-            color = Color(0xFF4C4035),
-            lineHeight = 24.sp
-        )
     }
 }
 
@@ -540,4 +254,20 @@ fun parseQuestions(questionsArray: JSONArray): List<DisplayQuestion> {
     }
 
     return questions
+}
+
+fun logQuestionsToConsole(questions: List<DisplayQuestion>) {
+    if (questions.isEmpty()) {
+        Log.d(TAG, "No generated questions returned.")
+        return
+    }
+
+    questions.forEachIndexed { index, question ->
+        Log.d(TAG, "Question ${index + 1}: ${question.questionText}")
+        question.options.forEachIndexed { optionIndex, option ->
+            val label = ('A' + optionIndex).toString()
+            Log.d(TAG, "$label. $option")
+        }
+        Log.d(TAG, "Correct Answer: ${question.correctAnswer}")
+    }
 }
