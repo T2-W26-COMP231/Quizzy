@@ -15,7 +15,6 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -30,14 +29,6 @@ public class MainActivity extends AppCompatActivity {
         btnEasy = findViewById(R.id.btnEasy);
         btnMedium = findViewById(R.id.btnMedium);
         btnHard = findViewById(R.id.btnHard);
-
-        // TEMPORARY TEST DATA - FOR TESTING PURPOSES ONLY
-        // Uncomment the lines below to test QuizActivity directly
-        // without needing the backend or difficulty buttons.
-         List<Question> testQuestions = ApiService.generateQuestionsFromPrompt("test", "easy"); // In level, you can select easy, medium or difficult. Change the value as needed.
-         QuizRepository.currentQuizQuestions = testQuestions;
-         Intent intent = new Intent(MainActivity.this, QuizActivity.class);
-         startActivity(intent);
 
         btnEasy.setOnClickListener(v -> startQuizWithBackendPrompt(1, "easy"));
         btnMedium.setOnClickListener(v -> startQuizWithBackendPrompt(2, "medium"));
@@ -82,9 +73,10 @@ public class MainActivity extends AppCompatActivity {
 
                 String finalPrompt = promptTemplate + " " + instructionText;
 
-                // Note: ApiService and Question classes need to exist
-                // List<Question> generatedQuestions = ApiService.generateQuestionsFromPrompt(finalPrompt, level);
-                // QuizRepository.currentQuizQuestions = generatedQuestions;
+                List<Question> generatedQuestions =
+                        ApiService.generateQuestionsFromPrompt(finalPrompt, level);
+
+                QuizRepository.currentQuizQuestions = generatedQuestions;
 
                 runOnUiThread(() -> {
                     Intent intent = new Intent(MainActivity.this, QuizActivity.class);
