@@ -51,3 +51,34 @@ public class QuizActivity extends AppCompatActivity {
 
         btnSubmit.setOnClickListener(v -> validateAnswer());  // Submit button wired here
     }
+
+    private void showQuestion() {
+        Question currentQuestion = questionList.get(currentQuestionIndex);
+        tvQuestionNumber.setText("Question " + (currentQuestionIndex + 1) + " of " + questionList.size());
+        tvQuestion.setText(currentQuestion.getQuestionText());
+        tvScore.setText("Score: " + score);
+        option1.setText(currentQuestion.getOption1());
+        option2.setText(currentQuestion.getOption2());
+        option3.setText(currentQuestion.getOption3());
+        option4.setText(currentQuestion.getOption4());
+        radioGroup.clearCheck();
+        btnSubmit.setVisibility(View.VISIBLE);
+        btnNext.setVisibility(View.GONE);
+    }
+btnNext.setOnClickListener(v ->
+
+    {
+        currentQuestionIndex++;
+        answered = false;
+        if (currentQuestionIndex < questionList.size()) {
+            showQuestion();
+        } else {
+            Intent intent = new Intent(QuizActivity.this, ResultActivity.class);
+            intent.putExtra("score", score);
+            intent.putExtra("total", questionList.size());
+            startActivity(intent);
+            finish();
+        }
+    });
+  }
+}
