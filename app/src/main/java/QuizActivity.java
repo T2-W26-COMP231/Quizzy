@@ -65,7 +65,7 @@ public class QuizActivity extends AppCompatActivity {
         btnSubmit.setVisibility(View.VISIBLE);
         btnNext.setVisibility(View.GONE);
     }
-btnNext.setOnClickListener(v ->
+    btnNext.setOnClickListener(v ->
 
     {
         currentQuestionIndex++;
@@ -81,4 +81,37 @@ btnNext.setOnClickListener(v ->
         }
     });
   }
+private void validateAnswer() {
+    if (answered) return;
+
+    int selectedId = radioGroup.getCheckedRadioButtonId();
+
+    if (selectedId == -1) {
+        View contextView = findViewById(android.R.id.content);
+        com.google.android.material.snackbar.Snackbar.make(contextView, "Please select an answer", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+        return;
+    }
+
+    RadioButton selectedButton = findViewById(selectedId);
+    String selectedAnswer = selectedButton.getText().toString();
+    Question currentQuestion = questionList.get(currentQuestionIndex);
+
+    View layout = findViewById(android.R.id.content);
+
+    if (selectedAnswer.equals(currentQuestion.getCorrectAnswer())) {
+        score++;
+        com.google.android.material.snackbar.Snackbar.make(layout, "¡Correct!", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                .setBackgroundTint(getResources().getColor(android.R.color.holo_green_dark))
+                .show();
+    } else {
+        com.google.android.material.snackbar.Snackbar.make(layout, "Wrong. The answer was: " + currentQuestion.getCorrectAnswer(), com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                .setBackgroundTint(getResources().getColor(android.R.color.holo_red_dark))
+                .show();
+    }
+
+    answered = true;
+    btnSubmit.setVisibility(View.GONE);
+    btnNext.setVisibility(View.VISIBLE);
+   }
 }
+
