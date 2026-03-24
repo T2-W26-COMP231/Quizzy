@@ -45,4 +45,22 @@ public class QuizActivity {
         option2.setText(currentQuestion.getOption2());
         option3.setText(currentQuestion.getOption3());
         option4.setText(currentQuestion.getOption4());
+
+    // Task #19 - Implement answer selection logic and store the selected answer
+    private void validateAnswer() {
+
+        if (answered) {
+            return;
+        }
+
+        int selectedId = radioGroup.getCheckedRadioButtonId();
+
+        if (selectedId == -1) {
+            View contextView = findViewById(android.R.id.content);
+            com.google.android.material.snackbar.Snackbar.make(contextView, "Please select an answer", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+            return;
+        }
+    }
 }
+
+
