@@ -64,6 +64,11 @@ public class QuizActivity extends AppCompatActivity {
         radioGroup.clearCheck();
         btnSubmit.setVisibility(View.VISIBLE);
         btnNext.setVisibility(View.GONE);
+        // US #27 - As a Child, I want to move to the next question so I can continue the quiz
+        // Task #28 - Clear previous question data and remove feedback overlay before loading next question
+        radioGroup.clearCheck();
+        btnSubmit.setVisibility(View.VISIBLE);
+        btnNext.setVisibility(View.GONE);
     }
     btnNext.setOnClickListener(v ->
 
