@@ -1,5 +1,6 @@
 package com.example.quizzy
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -26,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,6 +79,7 @@ fun InstructionsScreen(
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     LaunchedEffect(gradeLevel) {
         isLoading = true
@@ -91,6 +94,28 @@ fun InstructionsScreen(
 
             val questions = fetchGeneratedQuizFromBackend(prompt)
             logQuestionsToConsole(questions)
+
+            if (questions.isNotEmpty()) {
+                // Map DisplayQuestion to Question (used by QuizActivity)
+                QuizRepository.currentQuizQuestions = questions.map { dq ->
+                    Question(
+                        dq.questionText,
+                        dq.options.getOrNull(0) ?: "",
+                        dq.options.getOrNull(1) ?: "",
+                        dq.options.getOrNull(2) ?: "",
+                        dq.options.getOrNull(3) ?: "",
+                        dq.correctAnswer
+                    )
+                }
+
+                // Navigate to QuizActivity
+                val intent = Intent(context, QuizActivity::class.java)
+                context.startActivity(intent)
+                (context as? InstructionsActivity)?.finish()
+            } else {
+                errorMessage = "No questions were generated. Please try again."
+            }
+
         } catch (e: Exception) {
             errorMessage = e.message ?: "Something went wrong."
             Log.e(TAG, "Screen load failed", e)
