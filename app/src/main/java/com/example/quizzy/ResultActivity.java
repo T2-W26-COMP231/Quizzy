@@ -38,10 +38,9 @@ public class ResultActivity extends AppCompatActivity {
 
         tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
 
-        int userId = 1;
-
+        // Use BadgeManager to get real earned badges from SharedPreferences
         List<Badges> allBadges = BadgeCatalog.getAllBadges();
-        List<Badges> earnedBadges = QuizRepository.getUserBadges(userId);
+        List<Badges> earnedBadges = BadgeManager.getEarnedBadges(this);
 
         List<AchievementDisplayItem> displayItems =
                 AchievementProcessor.prepareAchievementsForDisplay(

@@ -31,11 +31,14 @@ public class QuizActivity extends AppCompatActivity {
     private int currentQuestionIndex = 0;
     private int score = 0;
     private boolean answered = false;
+    private int gradeLevel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_quiz);
+
+        gradeLevel = getIntent().getIntExtra("GRADE_LEVEL", 3);
 
         tvQuestionNumber = findViewById(R.id.tvQuestionNumber);
         tvQuestion = findViewById(R.id.tvQuestion);
@@ -146,6 +149,9 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     private void openResultsScreen() {
+        // Logic of badges that are unlocked based on the user's progress.
+        BadgeManager.checkAndUnlockBadges(this, score, questionList.size(), gradeLevel);
+
         Intent intent = new Intent(QuizActivity.this, ResultActivity.class);
         intent.putExtra("score", score);
         intent.putExtra("totalQuestions", questionList.size());
