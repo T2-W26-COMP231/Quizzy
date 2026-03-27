@@ -1,5 +1,5 @@
 package com.example.quizzy;
-
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -67,32 +67,37 @@ public class QuizActivity extends AppCompatActivity {
         btnNext.setOnClickListener(v -> {
             currentQuestionIndex++;
             answered = false;
+
             if (currentQuestionIndex < questionList.size()) {
                 showQuestion();
             } else {
-                finish();
+                openResultsScreen();
             }
         });
     }
 
     private void showQuestion() {
         Question currentQuestion = questionList.get(currentQuestionIndex);
-        
-        tvQuestionNumber.setText(String.format(Locale.getDefault(), "Question %d of %d", currentQuestionIndex + 1, questionList.size()));
+
+        tvQuestionNumber.setText(String.format(Locale.getDefault(),
+                "Question %d of %d",
+                currentQuestionIndex + 1,
+                questionList.size()));
+
         tvQuestion.setText(currentQuestion.getQuestionText());
         tvScore.setText(String.format(Locale.getDefault(), "Score: %d", score));
-        
+
         option1.setText(currentQuestion.getOption1());
         option2.setText(currentQuestion.getOption2());
         option3.setText(currentQuestion.getOption3());
         option4.setText(currentQuestion.getOption4());
-        
+
         radioGroup.clearCheck();
         enableOptions(true);
-        
+
         progressBar.setProgress(currentQuestionIndex + 1);
         feedbackCard.setVisibility(View.GONE);
-        
+
         btnSubmit.setVisibility(View.VISIBLE);
         btnNext.setVisibility(View.GONE);
     }
@@ -119,10 +124,14 @@ public class QuizActivity extends AppCompatActivity {
         if (selectedAnswer.equals(currentQuestion.getCorrectAnswer())) {
             score++;
             tvFeedback.setText("Correct! 🎉");
-            feedbackCard.setCardBackgroundColor(ContextCompat.getColor(this, android.R.color.holo_green_dark));
+            feedbackCard.setCardBackgroundColor(
+                    ContextCompat.getColor(this, android.R.color.holo_green_dark)
+            );
         } else {
             tvFeedback.setText("Wrong. The correct answer was: " + currentQuestion.getCorrectAnswer());
-            feedbackCard.setCardBackgroundColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+            feedbackCard.setCardBackgroundColor(
+                    ContextCompat.getColor(this, android.R.color.holo_red_dark)
+            );
         }
 
         tvScore.setText(String.format(Locale.getDefault(), "Score: %d", score));
@@ -134,5 +143,13 @@ public class QuizActivity extends AppCompatActivity {
         for (int i = 0; i < radioGroup.getChildCount(); i++) {
             radioGroup.getChildAt(i).setEnabled(enable);
         }
+    }
+
+    private void openResultsScreen() {
+        Intent intent = new Intent(QuizActivity.this, ResultActivity.class);
+        intent.putExtra("score", score);
+        intent.putExtra("totalQuestions", questionList.size());
+        startActivity(intent);
+        finish();
     }
 }
