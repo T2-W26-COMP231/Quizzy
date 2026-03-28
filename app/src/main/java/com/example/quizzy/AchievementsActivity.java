@@ -1,4 +1,5 @@
 package com.example.quizzy;
+
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -32,11 +33,11 @@ public class AchievementsActivity extends AppCompatActivity {
 
         if (badges == null || badges.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText("No badges available.");
-            empty.setTextSize(18f);
+            empty.setText("No badges available yet.");
+            empty.setTextSize(22f);
             empty.setTextColor(Color.parseColor("#6E6257"));
             empty.setGravity(Gravity.CENTER);
-            empty.setPadding(0, 80, 0, 0);
+            empty.setPadding(0, 100, 0, 0);
             achievementsContainer.addView(empty);
             return;
         }
@@ -50,8 +51,8 @@ public class AchievementsActivity extends AppCompatActivity {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, 18, 0, 18);
-            row.setAlpha(unlocked ? 1f : 0.45f);
+            row.setPadding(0, 28, 0, 28);
+            row.setAlpha(unlocked ? 1f : 0.55f);
 
             LinearLayout textLayout = new LinearLayout(this);
             textLayout.setOrientation(LinearLayout.VERTICAL);
@@ -65,47 +66,51 @@ public class AchievementsActivity extends AppCompatActivity {
 
             TextView title = new TextView(this);
             title.setText(badge.getName());
-            title.setTextSize(18f);
+            title.setTextSize(24f);
             title.setTypeface(null, android.graphics.Typeface.BOLD);
             title.setTextColor(unlocked
-                    ? Color.parseColor("#3E3126")
+                    ? Color.parseColor("#2F241C")
                     : Color.parseColor("#9E9E9E"));
 
             TextView description = new TextView(this);
             description.setText(badge.getDescription());
-            description.setTextSize(14f);
+            description.setTextSize(18f);
+            description.setPadding(0, 8, 0, 0);
             description.setTextColor(unlocked
                     ? Color.parseColor("#6E6257")
                     : Color.parseColor("#BDBDBD"));
 
             TextView status = new TextView(this);
             status.setText(unlocked ? "Unlocked" : "Locked");
-            status.setTextSize(12f);
-            status.setPadding(0, 6, 0, 0);
+            status.setTextSize(15f);
+            status.setPadding(0, 10, 0, 0);
             status.setTextColor(unlocked
                     ? Color.parseColor("#2E7D32")
                     : Color.parseColor("#9E9E9E"));
-
-            TextView icon = new TextView(this);
-            icon.setText(unlocked ? "🏆" : "🔒");
-            icon.setTextSize(22f);
-            icon.setPadding(16, 0, 0, 0);
 
             textLayout.addView(title);
             textLayout.addView(description);
             textLayout.addView(status);
 
             row.addView(textLayout);
-            row.addView(icon);
+
+            // Locked badges show trophy, unlocked badges show no icon
+            if (!unlocked) {
+                TextView trophy = new TextView(this);
+                trophy.setText("🏆");
+                trophy.setTextSize(30f);
+                trophy.setPadding(20, 0, 0, 0);
+                row.addView(trophy);
+            }
 
             achievementsContainer.addView(row);
 
             View divider = new View(this);
             divider.setLayoutParams(new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    1
+                    2
             ));
-            divider.setBackgroundColor(Color.parseColor("#DDDDDD"));
+            divider.setBackgroundColor(Color.parseColor("#D8D2C8"));
 
             achievementsContainer.addView(divider);
         }
