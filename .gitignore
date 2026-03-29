@@ -1,3 +1,4 @@
+
 *.iml
 .gradle
 /local.properties
@@ -15,4 +16,42 @@
 local.properties
 .idea/
 application-local.properties
+<<<<<<< HEAD
 quizzy-backend/src/main/resources/application.properties
+=======
+=======
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+quizzy-backend/src/main/resources/application.properties
+### VS Code ###
+.vscode/
+
+>>>>>>> 9d092c786f7ad2f7e87e892e1689144a9ac665d6
