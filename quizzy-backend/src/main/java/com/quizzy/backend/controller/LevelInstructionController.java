@@ -27,11 +27,11 @@ public class LevelInstructionController {
     }
 
     @GetMapping("/generate-quiz/{gradeLevel}")
-    public QuizResponse generateQuiz(@PathVariable Integer gradeLevel) throws Exception {
+    public QuizResponse generateQuiz(@PathVariable Integer gradeLevel, @RequestParam(required = false) Integer userId) throws Exception {
         LevelInstruction instruction = levelInstructionRepository.findByGradeLevel(gradeLevel)
                 .orElseThrow(() -> new RuntimeException("No instruction found for grade level: " + gradeLevel));
 
         String prompt = instruction.getPromptTemplate() + " " + instruction.getInstructionText();
-        return quizService.generateAndStore(prompt);
+        return quizService.generateAndStore(prompt, userId);
     }
 }

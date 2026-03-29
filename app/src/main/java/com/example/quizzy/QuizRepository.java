@@ -11,6 +11,7 @@ public class QuizRepository {
 
     // Used by InstructionsActivity.kt and QuizActivity
     public static List<Question> currentQuizQuestions = new ArrayList<>();
+    public static long currentSessionId = -1L;
 
     public interface BadgeCallback {
         void onSuccess(List<Badges> badges);
