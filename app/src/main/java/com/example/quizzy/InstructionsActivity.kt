@@ -119,11 +119,11 @@ fun InstructionsScreen(
                 context.startActivity(intent)
                 (context as? InstructionsActivity)?.finish()
             } else {
-                errorMessage = "No questions were generated. Please try again."
+                errorMessage = "Oops, something went wrong."
             }
 
         } catch (e: Exception) {
-            errorMessage = e.message ?: "Something went wrong."
+            errorMessage = "Oops, something went wrong."
             Log.e(TAG, "Screen load failed", e)
         } finally {
             isLoading = false
