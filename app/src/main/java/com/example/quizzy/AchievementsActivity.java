@@ -15,6 +15,7 @@ import java.util.List;
 public class AchievementsActivity extends AppCompatActivity {
 
     private LinearLayout achievementsContainer;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,6 +23,7 @@ public class AchievementsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_achievements);
 
         achievementsContainer = findViewById(R.id.achievementsContainer);
+        sessionManager = new SessionManager(this);
 
         findViewById(R.id.navHome).setOnClickListener(v -> {
             Intent intent = new Intent(this, MainActivity.class);
@@ -48,7 +50,12 @@ public class AchievementsActivity extends AppCompatActivity {
             finish();
         });
 
-        int userId = 1;
+        int userId = (int) sessionManager.getUserId();
+        
+        if (userId == -1) {
+            showError("User not logged in.");
+            return;
+        }
 
         QuizRepository.getUserBadges(userId, new QuizRepository.BadgeCallback() {
             @Override
@@ -58,17 +65,19 @@ public class AchievementsActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
-                achievementsContainer.removeAllViews();
-
-                TextView errorView = new TextView(AchievementsActivity.this);
-                errorView.setText("Error loading badges: " + error);
-                errorView.setTextSize(18f);
-                errorView.setTextColor(Color.RED);
-                errorView.setPadding(20, 40, 20, 20);
-
-                achievementsContainer.addView(errorView);
+                showError(error);
             }
         });
+    }
+    
+    private void showError(String message) {
+        achievementsContainer.removeAllViews();
+        TextView errorView = new TextView(AchievementsActivity.this);
+        errorView.setText("Error: " + message);
+        errorView.setTextSize(18f);
+        errorView.setTextColor(Color.RED);
+        errorView.setPadding(20, 40, 20, 20);
+        achievementsContainer.addView(errorView);
     }
 
     private void showBadges(List<Badges> badges) {
@@ -134,7 +143,7 @@ public class AchievementsActivity extends AppCompatActivity {
 
             row.addView(textLayout);
 
-            if (!unlocked) {
+            if (unlocked) {
                 TextView trophy = new TextView(this);
                 trophy.setText("🏆");
                 trophy.setTextSize(30f);

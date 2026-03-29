@@ -10,6 +10,7 @@ import retrofit2.Response;
 public class QuizRepository {
 
     public static List<Question> currentQuizQuestions = new ArrayList<>();
+    public static long currentSessionId = -1L;
 
     public interface BadgeCallback {
         void onSuccess(List<Badges> badges);
