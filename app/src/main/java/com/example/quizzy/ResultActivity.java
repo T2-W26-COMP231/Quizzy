@@ -7,7 +7,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -15,25 +14,24 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
-import androidx.core.content.ContextCompat;
 
 import com.example.quizzy.network.NetworkClient;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import java.util.Locale;
 
 public class ResultActivity extends AppCompatActivity {
 //TODO: Check future results enhancements
     private LinearLayout achievementsContainer;
     private SessionManager sessionManager;
     private TextView tvResultTitle;
+    private TextView tvFinalScore;
+    private TextView tvResultMessage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,42 +40,27 @@ public class ResultActivity extends AppCompatActivity {
 
         achievementsContainer = findViewById(R.id.achievementsContainer);
         tvResultTitle = findViewById(R.id.tvResultTitle);
+        tvFinalScore = findViewById(R.id.tvFinalScore);
+        tvResultMessage = findViewById(R.id.tvResultMessage);
         sessionManager = new SessionManager(this);
 
         int score = getIntent().getIntExtra("score", 0);
         int totalQuestions = getIntent().getIntExtra("totalQuestions", 0);
 
-        tvFinalScore.setText(String.format(Locale.getDefault(),
-                "Final Score: %d / %d", score, totalQuestions));
+        // Display Score and Message
+        if (tvFinalScore != null) {
+            tvFinalScore.setText(String.format(Locale.getDefault(), "Score: %d / %d", score, totalQuestions));
+        }
+        
+        if (tvResultMessage != null) {
+            tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
+        }
 
-        tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
-
-        // Sync score and badges with backend
-        syncScoreAndBadges(score);
-
-        // Display achievements in UI
-        List<Badges> allBadges = BadgeCatalog.getAllBadges();
-        List<Badges> earnedBadges = BadgeManager.getEarnedBadges(this);
-
-        List<AchievementDisplayItem> displayItems =
-                AchievementProcessor.prepareAchievementsForDisplay(
-                        allBadges,
-                        earnedBadges,
-                        score,
-                        totalQuestions
-                );
-
-        showAchievements(achievementsContainer, displayItems);
-
-        btnBackToDashboard.setOnClickListener(v -> {
-            Intent intent = new Intent(ResultActivity.this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-            finish();
-        });
+        // Sync score and fetch new badges from backend
+        syncScoreAndFetchNewBadges(score, totalQuestions);
     }
 
-    private void syncScoreAndFetchNewBadges(int correctAnswers) {
+    private void syncScoreAndFetchNewBadges(int correctAnswers, int totalQuestions) {
         long userId = sessionManager.getUserId();
         long sessionId = QuizRepository.currentSessionId;
 
@@ -90,6 +73,7 @@ public class ResultActivity extends AppCompatActivity {
             JSONObject body = new JSONObject();
             body.put("user_id", userId);
             body.put("points", correctAnswers);
+            body.put("total_questions", totalQuestions);
 
             if (sessionId != -1L) {
                 body.put("session_id", sessionId);
@@ -97,27 +81,43 @@ public class ResultActivity extends AppCompatActivity {
 
             new Thread(() -> {
                 try {
-                    NetworkClient.postSync("/score/update", body);
-                    Log.d("SYNC", "Score synced successfully for userId: " + userId + " sessionId: " + sessionId);
-                } catch (Exception e) {
-                    Log.e("SYNC", "Error syncing score: " + e.getMessage());
-                }
-                
-                runOnUiThread(() -> {
-                    if (newlyEarned.isEmpty()) {
-                        tvResultTitle.setText("Quiz Complete!");
-                        showNoNewBadges();
-                    } else {
-                        tvResultTitle.setText("New Achievements! 🎉");
-                        displayNewBadges(newlyEarned);
+                    // Sync with backend and get response containing newly earned badges
+                    // The backend returns 'newBadges' field
+                    JSONObject response = NetworkClient.postSync("/score/update", body);
+                    Log.d("SYNC", "Score synced successfully. Response: " + response.toString());
+                    
+                    List<Badges> newlyEarned = new ArrayList<>();
+                    if (response.has("newBadges")) {
+                        JSONArray badgesArray = response.getJSONArray("newBadges");
+                        for (int i = 0; i < badgesArray.length(); i++) {
+                            JSONObject badgeObj = badgesArray.getJSONObject(i);
+                            // Backend fields: badgeId, badgeName, description
+                            newlyEarned.add(new Badges(
+                                    badgeObj.getLong("badgeId"),
+                                    badgeObj.getString("badgeName"),
+                                    badgeObj.getString("description"),
+                                    true
+                            ));
+                        }
                     }
-                });
 
-            } catch (Exception e) {
-                Log.e("SYNC", "Error: " + e.getMessage());
-                runOnUiThread(() -> showError("Failed to sync: " + e.getMessage()));
-            }
-        }).start();
+                    runOnUiThread(() -> {
+                        if (newlyEarned.isEmpty()) {
+                            tvResultTitle.setText("Quiz Complete!");
+                            showNoNewBadges();
+                        } else {
+                            tvResultTitle.setText("New Achievements! 🎉");
+                            displayNewBadges(newlyEarned);
+                        }
+                    });
+                } catch (Exception e) {
+                    Log.e("SYNC", "Error: " + e.getMessage());
+                    runOnUiThread(() -> showError("Failed to sync: " + e.getMessage()));
+                }
+            }).start();
+        } catch (JSONException e) {
+            Log.e("SYNC", "JSON error: " + e.getMessage());
+        }
     }
 
     private void displayNewBadges(List<Badges> badges) {
@@ -233,7 +233,7 @@ public class ResultActivity extends AppCompatActivity {
         message.setTextSize(18f);
         message.setTextColor(Color.parseColor("#7B1FA2"));
         message.setGravity(Gravity.CENTER);
-        message.setPadding(40, 100, 40, 0);
+        message.setPadding(40, 60, 40, 0);
         message.setLineSpacing(0, 1.2f);
         achievementsContainer.addView(message);
     }
