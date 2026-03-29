@@ -10,12 +10,33 @@
         android:id="@+id/tvResultTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Your Achievements"
+        android:text="Quiz Complete!"
         android:textColor="#5A4A3B"
         android:textSize="28sp"
         android:textStyle="bold"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="24dp"/>
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:id="@+id/tvFinalScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:textColor="#5A4A3B"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tvResultMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:textColor="#7B6A58"
+        android:textSize="18sp"
+        android:layout_marginBottom="24dp"
+        android:textAlignment="center"/>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -28,17 +49,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
+            android:gravity="center_horizontal"
             android:paddingBottom="16dp" />
     </ScrollView>
-
-    <!-- Adding a small button or tap listener to eventually leave might be good UX,
-         but the user specifically said "just the badges".
-         I'll add a simple 'Finish' button at the very bottom as they might get stuck otherwise,
-         but I'll keep it subtle or just follow instructions strictly.
-         Actually, I'll follow instructions strictly and remove the button.
-         Wait, if I remove the button, how do they leave?
-         Maybe they want it to look like a summary.
-         I'll keep a "Finish" button but the request was "not a button to go back to the dashboard".
-         I'll remove it as requested. -->
 
 </LinearLayout>
