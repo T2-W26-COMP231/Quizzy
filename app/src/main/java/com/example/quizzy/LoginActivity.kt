@@ -3,6 +3,7 @@ package com.example.quizzy
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.util.Patterns
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -104,7 +105,7 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Email (Optional)") },
+                label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true
@@ -134,6 +135,16 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
                         Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
+                    if (!isLogin) {
+                        if (email.isBlank()) {
+                            Toast.makeText(context, "Email is required", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                            Toast.makeText(context, "Please enter a valid email address", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                    }
                     scope.launch {
                         isLoading = true
                         try {
@@ -143,7 +154,7 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
                                 put("password", password)
                                 if (!isLogin) {
                                     put("email", email)
-                                    put("role", "STUDENT") // Default role
+                                    put("role", "STUDENT")
                                 }
                             }
 
@@ -156,8 +167,22 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
                                     onLoginSuccess()
                                 },
                                 onFailure = { e ->
-                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
-                                    Log.e("LOGIN", "Error", e)
+                                    val errorMessage = e.message ?: "An error occurred"
+                                    val displayMessage = when {
+                                        errorMessage.contains("Username already exists", ignoreCase = true) -> "This username already exists"
+                                        errorMessage.contains("Email already exists", ignoreCase = true) -> "This email already exists"
+                                        errorMessage.startsWith("Error 400:") -> {
+                                            try {
+                                                val jsonError = JSONObject(errorMessage.substringAfter("Error 400: "))
+                                                jsonError.optString("error", errorMessage)
+                                            } catch (je: Exception) {
+                                                errorMessage
+                                            }
+                                        }
+                                        else -> errorMessage
+                                    }
+                                    Toast.makeText(context, displayMessage, Toast.LENGTH_LONG).show()
+                                    Log.e("LOGIN", "Error: $errorMessage", e)
                                 }
                             )
                         } catch (e: Exception) {

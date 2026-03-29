@@ -23,10 +23,13 @@ public class UserService {
     @Transactional
     public User registerUser(User user) throws Exception {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            throw new Exception("Username already exists");
+            throw new Exception("This username already exists");
         }
-        if (user.getEmail() != null && userRepository.findByEmail(user.getEmail()).isPresent()) {
-            throw new Exception("Email already exists");
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new Exception("Email is required");
+        }
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new Exception("This email already exists");
         }
 
         // Mapping 'password' to 'password_hash' column
