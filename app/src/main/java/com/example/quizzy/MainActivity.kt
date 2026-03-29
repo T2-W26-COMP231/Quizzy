@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
                                 "Home", "Dashboard" -> DashboardScreen(
                                     onStartQuiz = { currentScreen = "QuizSelection" }
                                 )
+
                                 "QuizSelection" -> QuizSelectionScreen(
                                     onGradeSelected = { gradeLevel, gradeName ->
                                         val intent = Intent(this@MainActivity, InstructionsActivity::class.java).apply {
@@ -64,7 +65,14 @@ class MainActivity : ComponentActivity() {
                                         startActivity(intent)
                                     }
                                 )
-                                "Achievements" -> PlaceholderScreen("Achievements")
+
+                                "Achievements" -> {
+                                    LaunchedEffect(Unit) {
+                                        startActivity(Intent(this@MainActivity, AchievementsActivity::class.java))
+                                        currentScreen = "Home"
+                                    }
+                                }
+
                                 "Guardian" -> PlaceholderScreen("Guardian Dashboard")
                                 "Settings" -> PlaceholderScreen("Settings")
                             }
