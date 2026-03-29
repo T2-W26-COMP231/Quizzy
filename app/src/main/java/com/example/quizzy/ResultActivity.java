@@ -18,6 +18,10 @@ import org.json.JSONObject;
 import java.util.List;
 import java.util.Locale;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class ResultActivity extends AppCompatActivity {
 
     @Override
@@ -38,10 +42,10 @@ public class ResultActivity extends AppCompatActivity {
 
         tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
 
-        // SYNC WITH BACKEND (Includes sessionId)
+        // Sync score and badges with backend
         syncScoreAndBadges(score);
 
-        // UI display logic
+        // Display achievements in UI
         List<Badges> allBadges = BadgeCatalog.getAllBadges();
         List<Badges> earnedBadges = BadgeManager.getEarnedBadges(this);
 
@@ -77,6 +81,7 @@ public class ResultActivity extends AppCompatActivity {
             JSONObject body = new JSONObject();
             body.put("user_id", userId);
             body.put("points", correctAnswers);
+
             if (sessionId != -1L) {
                 body.put("session_id", sessionId);
             }
