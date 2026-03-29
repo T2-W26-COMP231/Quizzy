@@ -21,7 +21,7 @@ public class QuizController {
     }
 
     @PostMapping("/quiz/generate")
-    public QuizResponse generateQuiz(@RequestParam String prompt) throws Exception {
-        return quizService.generateAndStore(prompt);
+    public QuizResponse generateQuiz(@RequestParam String prompt, @RequestParam(required = false) Integer userId) throws Exception {
+        return quizService.generateAndStore(prompt, userId);
     }
 }

@@ -3,6 +3,7 @@ package com.example.quizzy;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -10,25 +11,24 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
+import com.example.quizzy.network.NetworkClient;
+
+import org.json.JSONObject;
+
 import java.util.List;
 import java.util.Locale;
 
 public class ResultActivity extends AppCompatActivity {
-
-    private TextView tvFinalScore;
-    private TextView tvResultMessage;
-    private LinearLayout achievementsContainer;
-    private Button btnBackToDashboard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_result);
 
-        tvFinalScore = findViewById(R.id.tvFinalScore);
-        tvResultMessage = findViewById(R.id.tvResultMessage);
-        achievementsContainer = findViewById(R.id.achievementsContainer);
-        btnBackToDashboard = findViewById(R.id.btnBackToDashboard);
+        TextView tvFinalScore = findViewById(R.id.tvFinalScore);
+        TextView tvResultMessage = findViewById(R.id.tvResultMessage);
+        LinearLayout achievementsContainer = findViewById(R.id.achievementsContainer);
+        Button btnBackToDashboard = findViewById(R.id.btnBackToDashboard);
 
         int score = getIntent().getIntExtra("score", 0);
         int totalQuestions = getIntent().getIntExtra("totalQuestions", 0);
@@ -38,7 +38,10 @@ public class ResultActivity extends AppCompatActivity {
 
         tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
 
-        // Use BadgeManager to get real earned badges from SharedPreferences
+        // SYNC WITH BACKEND (Includes sessionId)
+        syncScoreAndBadges(score);
+
+        // UI display logic
         List<Badges> allBadges = BadgeCatalog.getAllBadges();
         List<Badges> earnedBadges = BadgeManager.getEarnedBadges(this);
 
@@ -50,18 +53,51 @@ public class ResultActivity extends AppCompatActivity {
                         totalQuestions
                 );
 
-        showAchievements(displayItems);
+        showAchievements(achievementsContainer, displayItems);
 
         btnBackToDashboard.setOnClickListener(v -> {
             Intent intent = new Intent(ResultActivity.this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
     }
 
-    private void showAchievements(List<AchievementDisplayItem> items) {
-        achievementsContainer.removeAllViews();
+    private void syncScoreAndBadges(int correctAnswers) {
+        SessionManager sessionManager = new SessionManager(this);
+        long userId = sessionManager.getUserId();
+        long sessionId = QuizRepository.currentSessionId;
+
+        if (userId == -1L) {
+            Log.d("SYNC", "No user logged in, skipping sync");
+            return;
+        }
+
+        try {
+            JSONObject body = new JSONObject();
+            body.put("user_id", userId);
+            body.put("points", correctAnswers);
+            if (sessionId != -1L) {
+                body.put("session_id", sessionId);
+            }
+
+            new Thread(() -> {
+                try {
+                    NetworkClient.postSync("/score/update", body);
+                    Log.d("SYNC", "Score synced successfully for userId: " + userId + " sessionId: " + sessionId);
+                } catch (Exception e) {
+                    Log.e("SYNC", "Error syncing score: " + e.getMessage());
+                }
+            }).start();
+
+        } catch (Exception e) {
+            Log.e("SYNC", "JSON Error: " + e.getMessage());
+        }
+    }
+
+    private void showAchievements(LinearLayout container, List<AchievementDisplayItem> items) {
+        if (container == null) return;
+        container.removeAllViews();
 
         for (AchievementDisplayItem item : items) {
             CardView cardView = new CardView(this);
@@ -107,7 +143,7 @@ public class ResultActivity extends AppCompatActivity {
             contentLayout.addView(tvStatus);
 
             cardView.addView(contentLayout);
-            achievementsContainer.addView(cardView);
+            container.addView(cardView);
         }
     }
 }
