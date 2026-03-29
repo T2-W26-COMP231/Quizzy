@@ -80,6 +80,7 @@ fun InstructionsScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
 
     LaunchedEffect(gradeLevel) {
         isLoading = true
@@ -92,7 +93,11 @@ fun InstructionsScreen(
             val prompt = buildPromptForGrade(gradeLevel)
             Log.d(TAG, "Generated questions prompt: $prompt")
 
-            val questions = fetchGeneratedQuizFromBackend(prompt)
+            val userId = sessionManager.getUserId().toInt()
+            val quizResponse = fetchGeneratedQuizFromBackend(prompt, userId)
+            val questions = quizResponse.first
+            val sessionId = quizResponse.second
+            
             logQuestionsToConsole(questions)
 
             if (questions.isNotEmpty()) {
@@ -107,6 +112,7 @@ fun InstructionsScreen(
                         dq.correctAnswer
                     )
                 }
+                QuizRepository.currentSessionId = sessionId
 
                 // Navigate to QuizActivity
                 val intent = Intent(context, QuizActivity::class.java)
@@ -203,10 +209,10 @@ suspend fun fetchInstructionFromBackend(gradeLevel: Int): String {
     }
 }
 
-suspend fun fetchGeneratedQuizFromBackend(prompt: String): List<DisplayQuestion> {
+suspend fun fetchGeneratedQuizFromBackend(prompt: String, userId: Int): Pair<List<DisplayQuestion>, Long> {
     return withContext(Dispatchers.IO) {
         val encodedPrompt = URLEncoder.encode(prompt, "UTF-8")
-        val url = URL("http://10.0.2.2:3000/api/quiz/generate?prompt=$encodedPrompt")
+        val url = URL("http://10.0.2.2:3000/api/quiz/generate?prompt=$encodedPrompt&userId=$userId")
         val connection = url.openConnection() as HttpURLConnection
 
         connection.requestMethod = "POST"
@@ -225,8 +231,9 @@ suspend fun fetchGeneratedQuizFromBackend(prompt: String): List<DisplayQuestion>
             }
 
             val json = JSONObject(responseText)
+            val sessionId = json.optLong("sessionId", -1L)
             val questionsArray = json.optJSONArray("questions") ?: JSONArray()
-            parseQuestions(questionsArray)
+            Pair(parseQuestions(questionsArray), sessionId)
         } finally {
             connection.disconnect()
         }

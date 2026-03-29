@@ -3,24 +3,38 @@ package com.example.quizzy;
 import java.util.ArrayList;
 import java.util.List;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class QuizRepository {
 
+    // Used by InstructionsActivity.kt and QuizActivity
     public static List<Question> currentQuizQuestions = new ArrayList<>();
+    public static long currentSessionId = -1L;
 
-    public static List<Badges> getUserBadges(int userId) {
-        List<Badges> badges = new ArrayList<>();
+    public interface BadgeCallback {
+        void onSuccess(List<Badges> badges);
+        void onError(String error);
+    }
 
-        badges.add(new Badges(1, "First Quiz", "Complete your first quiz", true));
-        badges.add(new Badges(2, "Perfect Score", "Score 100% on a quiz", false));
-        badges.add(new Badges(3, "High Achiever", "Score 80% or higher", true));
-        badges.add(new Badges(4, "Quiz Explorer", "Try different quiz levels", false));
-        badges.add(new Badges(5, "Dedicated Learner", "Complete 10 quizzes", false));
-        badges.add(new Badges(6, "Math Rookie", "Complete 3 math quizzes", true));
-        badges.add(new Badges(7, "Math Master", "Complete 10 math quizzes", false));
-        badges.add(new Badges(8, "On a Roll", "Answer 3 questions correctly in a row", false));
-        badges.add(new Badges(9, "Getting Better", "Improve your score", true));
-        badges.add(new Badges(10, "Badge Collector", "Collect 5 badges", false));
+    public static void getUserBadges(int userId, BadgeCallback callback) {
+        BadgeApiService apiService = RetrofitClient.getClient().create(BadgeApiService.class);
 
-        return badges;
+        apiService.getUserBadges(userId).enqueue(new Callback<List<Badges>>() {
+            @Override
+            public void onResponse(Call<List<Badges>> call, Response<List<Badges>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    callback.onSuccess(response.body());
+                } else {
+                    callback.onError("Failed to load badges. Code: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Badges>> call, Throwable t) {
+                callback.onError(t.getMessage() != null ? t.getMessage() : "Unknown error");
+            }
+        });
     }
 }
