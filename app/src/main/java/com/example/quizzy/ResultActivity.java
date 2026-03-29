@@ -1,149 +1,232 @@
 package com.example.quizzy;
 
-import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.Button;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.content.ContextCompat;
 
 import com.example.quizzy.network.NetworkClient;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public class ResultActivity extends AppCompatActivity {
+
+    private LinearLayout achievementsContainer;
+    private SessionManager sessionManager;
+    private TextView tvResultTitle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_result);
 
-        TextView tvFinalScore = findViewById(R.id.tvFinalScore);
-        TextView tvResultMessage = findViewById(R.id.tvResultMessage);
-        LinearLayout achievementsContainer = findViewById(R.id.achievementsContainer);
-        Button btnBackToDashboard = findViewById(R.id.btnBackToDashboard);
+        achievementsContainer = findViewById(R.id.achievementsContainer);
+        tvResultTitle = findViewById(R.id.tvResultTitle);
+        sessionManager = new SessionManager(this);
 
         int score = getIntent().getIntExtra("score", 0);
-        int totalQuestions = getIntent().getIntExtra("totalQuestions", 0);
-
-        tvFinalScore.setText(String.format(Locale.getDefault(),
-                "Final Score: %d / %d", score, totalQuestions));
-
-        tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
-
-        // SYNC WITH BACKEND (Includes sessionId)
-        syncScoreAndBadges(score);
-
-        // UI display logic
-        List<Badges> allBadges = BadgeCatalog.getAllBadges();
-        List<Badges> earnedBadges = BadgeManager.getEarnedBadges(this);
-
-        List<AchievementDisplayItem> displayItems =
-                AchievementProcessor.prepareAchievementsForDisplay(
-                        allBadges,
-                        earnedBadges,
-                        score,
-                        totalQuestions
-                );
-
-        showAchievements(achievementsContainer, displayItems);
-
-        btnBackToDashboard.setOnClickListener(v -> {
-            Intent intent = new Intent(ResultActivity.this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-            finish();
-        });
+        
+        // Setup initial UI
+        tvResultTitle.setText("Finalizing results...");
+        
+        syncScoreAndFetchNewBadges(score);
     }
 
-    private void syncScoreAndBadges(int correctAnswers) {
-        SessionManager sessionManager = new SessionManager(this);
+    private void syncScoreAndFetchNewBadges(int correctAnswers) {
         long userId = sessionManager.getUserId();
         long sessionId = QuizRepository.currentSessionId;
 
         if (userId == -1L) {
-            Log.d("SYNC", "No user logged in, skipping sync");
+            showError("User not logged in.");
             return;
         }
 
-        try {
-            JSONObject body = new JSONObject();
-            body.put("user_id", userId);
-            body.put("points", correctAnswers);
-            if (sessionId != -1L) {
-                body.put("session_id", sessionId);
-            }
-
-            new Thread(() -> {
-                try {
-                    NetworkClient.postSync("/score/update", body);
-                    Log.d("SYNC", "Score synced successfully for userId: " + userId + " sessionId: " + sessionId);
-                } catch (Exception e) {
-                    Log.e("SYNC", "Error syncing score: " + e.getMessage());
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("user_id", userId);
+                body.put("points", correctAnswers);
+                if (sessionId != -1L) {
+                    body.put("session_id", sessionId);
                 }
-            }).start();
+                
+                JSONObject response = NetworkClient.postSync("/score/update", body);
+                Log.d("SYNC", "Score synced successfully");
 
-        } catch (Exception e) {
-            Log.e("SYNC", "JSON Error: " + e.getMessage());
+                // Extract ONLY the badges earned in this session
+                JSONArray newBadgesArray = response.optJSONArray("newBadges");
+                List<Badges> newlyEarned = new ArrayList<>();
+                if (newBadgesArray != null) {
+                    for (int i = 0; i < newBadgesArray.length(); i++) {
+                        JSONObject bObj = newBadgesArray.getJSONObject(i);
+                        Badges b = new Badges();
+                        // Backend returns 'badgeId' and 'badgeName' for Badge objects
+                        b.setBadgeId(bObj.optLong("badgeId"));
+                        b.setName(bObj.optString("badgeName"));
+                        b.setDescription(bObj.optString("description"));
+                        b.setUnlocked(true);
+                        newlyEarned.add(b);
+                    }
+                }
+                
+                runOnUiThread(() -> {
+                    if (newlyEarned.isEmpty()) {
+                        tvResultTitle.setText("Quiz Complete!");
+                        showNoNewBadges();
+                    } else {
+                        tvResultTitle.setText("New Achievements! 🎉");
+                        displayNewBadges(newlyEarned);
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("SYNC", "Error: " + e.getMessage());
+                runOnUiThread(() -> showError("Failed to sync: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+    private void displayNewBadges(List<Badges> badges) {
+        achievementsContainer.removeAllViews();
+
+        for (int i = 0; i < badges.size(); i++) {
+            Badges badge = badges.get(i);
+            View badgeView = createBadgeCard(badge);
+            
+            // Basic entry animation
+            badgeView.setAlpha(0f);
+            badgeView.setTranslationY(50f);
+            achievementsContainer.addView(badgeView);
+            
+            badgeView.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(500)
+                    .setStartDelay(i * 200L)
+                    .setInterpolator(new AccelerateDecelerateInterpolator())
+                    .start();
         }
     }
 
-    private void showAchievements(LinearLayout container, List<AchievementDisplayItem> items) {
-        if (container == null) return;
-        container.removeAllViews();
+    private View createBadgeCard(Badges badge) {
+        CardView cardView = new CardView(this);
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        cardParams.setMargins(0, 16, 0, 16);
+        cardView.setLayoutParams(cardParams);
+        cardView.setRadius(32f);
+        cardView.setCardElevation(12f);
+        cardView.setUseCompatPadding(true);
+        
+        // Gradient Background for the card
+        GradientDrawable gradient = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[] { Color.parseColor("#FFFFFF"), Color.parseColor("#F5F0FF") }
+        );
+        gradient.setCornerRadius(32f);
+        cardView.setBackground(gradient);
 
-        for (AchievementDisplayItem item : items) {
-            CardView cardView = new CardView(this);
-            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            cardParams.setMargins(0, 0, 0, 24);
-            cardView.setLayoutParams(cardParams);
-            cardView.setRadius(24f);
-            cardView.setCardElevation(8f);
-            cardView.setUseCompatPadding(true);
-            cardView.setCardBackgroundColor(item.isUnlocked()
-                    ? Color.parseColor("#E8F5E9")
-                    : Color.parseColor("#FFF3E0"));
+        // FrameLayout to allow overlapping "NEW" tag
+        FrameLayout rootLayout = new FrameLayout(this);
+        
+        // Content Layout
+        LinearLayout contentLayout = new LinearLayout(this);
+        contentLayout.setOrientation(LinearLayout.HORIZONTAL);
+        contentLayout.setGravity(Gravity.CENTER_VERTICAL);
+        contentLayout.setPadding(40, 48, 40, 48);
 
-            LinearLayout contentLayout = new LinearLayout(this);
-            contentLayout.setOrientation(LinearLayout.VERTICAL);
-            contentLayout.setPadding(32, 32, 32, 32);
+        // Badge Icon (Trophy)
+        TextView iconView = new TextView(this);
+        iconView.setText("🏆");
+        iconView.setTextSize(40f);
+        iconView.setPadding(0, 0, 32, 0);
 
-            TextView tvTitle = new TextView(this);
-            tvTitle.setText(item.getTitle());
-            tvTitle.setTextSize(20f);
-            tvTitle.setTextColor(Color.parseColor("#5A4A3B"));
-            tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        // Text Info
+        LinearLayout textLayout = new LinearLayout(this);
+        textLayout.setOrientation(LinearLayout.VERTICAL);
+        
+        TextView tvName = new TextView(this);
+        tvName.setText(badge.getName());
+        tvName.setTextSize(22f);
+        tvName.setTextColor(Color.parseColor("#4A148C")); // Deep Purple
+        tvName.setTypeface(null, Typeface.BOLD);
 
-            TextView tvDescription = new TextView(this);
-            tvDescription.setText(item.getDescription());
-            tvDescription.setTextSize(16f);
-            tvDescription.setTextColor(Color.parseColor("#7B6A58"));
-            tvDescription.setPadding(0, 12, 0, 12);
+        TextView tvDesc = new TextView(this);
+        tvDesc.setText(badge.getDescription());
+        tvDesc.setTextSize(16f);
+        tvDesc.setTextColor(Color.parseColor("#6A1B9A"));
+        tvDesc.setPadding(0, 8, 0, 0);
 
-            TextView tvStatus = new TextView(this);
-            tvStatus.setText(item.getStatusText());
-            tvStatus.setTextSize(15f);
-            tvStatus.setTypeface(null, android.graphics.Typeface.BOLD);
-            tvStatus.setTextColor(item.isUnlocked()
-                    ? Color.parseColor("#2E7D32")
-                    : Color.parseColor("#EF6C00"));
+        textLayout.addView(tvName);
+        textLayout.addView(tvDesc);
 
-            contentLayout.addView(tvTitle);
-            contentLayout.addView(tvDescription);
-            contentLayout.addView(tvStatus);
+        contentLayout.addView(iconView);
+        contentLayout.addView(textLayout);
+        
+        rootLayout.addView(contentLayout);
 
-            cardView.addView(contentLayout);
-            container.addView(cardView);
-        }
+        // "NEW" Mark Circle
+        TextView newMark = new TextView(this);
+        newMark.setText("NEW");
+        newMark.setTextSize(10f);
+        newMark.setTextColor(Color.WHITE);
+        newMark.setTypeface(null, Typeface.BOLD);
+        newMark.setGravity(Gravity.CENTER);
+        
+        int size = 80; // px
+        FrameLayout.LayoutParams newParams = new FrameLayout.LayoutParams(size, size);
+        newParams.gravity = Gravity.TOP | Gravity.END;
+        newParams.setMargins(0, 16, 16, 0);
+        newMark.setLayoutParams(newParams);
+        
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(Color.parseColor("#FF4081")); // Pink accent
+        newMark.setBackground(circle);
+
+        rootLayout.addView(newMark);
+        
+        cardView.addView(rootLayout);
+        return cardView;
+    }
+
+    private void showNoNewBadges() {
+        achievementsContainer.removeAllViews();
+        TextView message = new TextView(this);
+        message.setText("Great effort! You didn't unlock any new badges this time, but keep practicing to reach the next milestone.");
+        message.setTextSize(18f);
+        message.setTextColor(Color.parseColor("#7B1FA2"));
+        message.setGravity(Gravity.CENTER);
+        message.setPadding(40, 100, 40, 0);
+        message.setLineSpacing(0, 1.2f);
+        achievementsContainer.addView(message);
+    }
+
+    private void showError(String message) {
+        achievementsContainer.removeAllViews();
+        TextView errorView = new TextView(this);
+        errorView.setText("Oops! " + message);
+        errorView.setTextColor(Color.RED);
+        errorView.setGravity(Gravity.CENTER);
+        errorView.setPadding(0, 50, 0, 0);
+        achievementsContainer.addView(errorView);
     }
 }

@@ -25,9 +25,15 @@
         <activity
             android:name=".AchievementsActivity"
             android:theme="@style/Theme.Material3.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".ResultActivity"
+            android:theme="@style/Theme.Material3.DayNight.NoActionBar" />
+
         <activity
             android:name=".MainActivity"
             android:exported="false" />
+
         <activity
             android:name=".LoginActivity"
             android:exported="true">
