@@ -1,13 +1,20 @@
 package com.example.quizzy;
 
 import android.content.Context;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class BadgeManager {
+
+    private static final String TAG = "BadgeManager";
 
     public static List<Badges> getUnlockedBadges(List<Badges> allBadges) {
         List<Badges> unlockedBadges = new ArrayList<>();
@@ -86,41 +93,59 @@ public class BadgeManager {
         int userId = 1;
 
         if (totalQuestions > 0) {
-            unlockBadge(context, userId, 1);
+            unlockBadge(context, userId, 1); // First Quiz
         }
 
         if (totalQuestions > 0 && score == totalQuestions) {
-            unlockBadge(context, userId, 2);
+            unlockBadge(context, userId, 2); // Perfect Score
         }
 
         if (totalQuestions > 0) {
             double percent = (score * 100.0) / totalQuestions;
             if (percent >= 80.0) {
-                unlockBadge(context, userId, 3);
+                unlockBadge(context, userId, 3); // High Achiever
             }
         }
 
         if (gradeLevel >= 4) {
-            unlockBadge(context, userId, 4);
+            unlockBadge(context, userId, 4); // Quiz Explorer
         }
 
         if (score >= 3) {
-            unlockBadge(context, userId, 6);
-            unlockBadge(context, userId, 8);
+            unlockBadge(context, userId, 6); // Math Rookie
+            unlockBadge(context, userId, 8); // On a Roll
         }
 
         if (score >= 1) {
-            unlockBadge(context, userId, 9);
+            unlockBadge(context, userId, 9); // Getting Better
         }
     }
 
     public static List<Badges> getEarnedBadges(Context context) {
-        List<Badges> allBadges = BadgeCatalog.getAllBadges();
-        return getUnlockedBadges(allBadges);
+        return new ArrayList<>();
     }
 
     private static void unlockBadge(Context context, int userId, int badgeId) {
-        // Placeholder for backend/API unlock later
-        // Kept empty for now so project compiles cleanly
+        BadgeApiService apiService = RetrofitClient
+                .getInstance()
+                .create(BadgeApiService.class);
+
+        Call<Void> call = apiService.unlockBadge(userId, badgeId);
+
+        call.enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "Badge unlocked successfully: " + badgeId);
+                } else {
+                    Log.e(TAG, "Failed to unlock badge " + badgeId + ". Code: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Log.e(TAG, "Error unlocking badge " + badgeId + ": " + t.getMessage());
+            }
+        });
     }
 }

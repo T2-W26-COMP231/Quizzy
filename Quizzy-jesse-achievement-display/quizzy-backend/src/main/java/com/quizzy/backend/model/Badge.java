@@ -11,7 +11,7 @@ public class Badge {
     @Column(name = "badge_id")
     private Long badgeId;
 
-    @Column(name = "badge_name")
+    @Column(name = "badge_name", nullable = false)
     private String name;
 
     @Column(nullable = false)
@@ -32,8 +32,8 @@ public class Badge {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setName(String badgeName) {
+        this.name = badgeName;
     }
 
     public String getDescription() {

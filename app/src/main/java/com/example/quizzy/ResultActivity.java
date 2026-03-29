@@ -25,6 +25,10 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class ResultActivity extends AppCompatActivity {
 
     private LinearLayout achievementsContainer;
@@ -41,11 +45,36 @@ public class ResultActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
 
         int score = getIntent().getIntExtra("score", 0);
-        
-        // Setup initial UI
-        tvResultTitle.setText("Finalizing results...");
-        
-        syncScoreAndFetchNewBadges(score);
+        int totalQuestions = getIntent().getIntExtra("totalQuestions", 0);
+
+        tvFinalScore.setText(String.format(Locale.getDefault(),
+                "Final Score: %d / %d", score, totalQuestions));
+
+        tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
+
+        // Sync score and badges with backend
+        syncScoreAndBadges(score);
+
+        // Display achievements in UI
+        List<Badges> allBadges = BadgeCatalog.getAllBadges();
+        List<Badges> earnedBadges = BadgeManager.getEarnedBadges(this);
+
+        List<AchievementDisplayItem> displayItems =
+                AchievementProcessor.prepareAchievementsForDisplay(
+                        allBadges,
+                        earnedBadges,
+                        score,
+                        totalQuestions
+                );
+
+        showAchievements(achievementsContainer, displayItems);
+
+        btnBackToDashboard.setOnClickListener(v -> {
+            Intent intent = new Intent(ResultActivity.this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+            finish();
+        });
     }
 
     private void syncScoreAndFetchNewBadges(int correctAnswers) {
@@ -57,32 +86,21 @@ public class ResultActivity extends AppCompatActivity {
             return;
         }
 
-        new Thread(() -> {
-            try {
-                JSONObject body = new JSONObject();
-                body.put("user_id", userId);
-                body.put("points", correctAnswers);
-                if (sessionId != -1L) {
-                    body.put("session_id", sessionId);
-                }
-                
-                JSONObject response = NetworkClient.postSync("/score/update", body);
-                Log.d("SYNC", "Score synced successfully");
+        try {
+            JSONObject body = new JSONObject();
+            body.put("user_id", userId);
+            body.put("points", correctAnswers);
 
-                // Extract ONLY the badges earned in this session
-                JSONArray newBadgesArray = response.optJSONArray("newBadges");
-                List<Badges> newlyEarned = new ArrayList<>();
-                if (newBadgesArray != null) {
-                    for (int i = 0; i < newBadgesArray.length(); i++) {
-                        JSONObject bObj = newBadgesArray.getJSONObject(i);
-                        Badges b = new Badges();
-                        // Backend returns 'badgeId' and 'badgeName' for Badge objects
-                        b.setBadgeId(bObj.optLong("badgeId"));
-                        b.setName(bObj.optString("badgeName"));
-                        b.setDescription(bObj.optString("description"));
-                        b.setUnlocked(true);
-                        newlyEarned.add(b);
-                    }
+            if (sessionId != -1L) {
+                body.put("session_id", sessionId);
+            }
+
+            new Thread(() -> {
+                try {
+                    NetworkClient.postSync("/score/update", body);
+                    Log.d("SYNC", "Score synced successfully for userId: " + userId + " sessionId: " + sessionId);
+                } catch (Exception e) {
+                    Log.e("SYNC", "Error syncing score: " + e.getMessage());
                 }
                 
                 runOnUiThread(() -> {
