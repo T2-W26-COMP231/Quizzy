@@ -16,7 +16,7 @@
 local.properties
 .idea/
 application-local.properties
-=======
+
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
@@ -48,6 +48,7 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 quizzy-backend/src/main/resources/application.properties
+src/main/resources/application.properties
 ### VS Code ###
 .vscode/
 
