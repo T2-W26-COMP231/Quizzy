@@ -35,7 +35,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            var currentScreen by remember { mutableStateOf("Home") }
+            val initialScreen = intent.getStringExtra("start_screen") ?: "Home"
+            var currentScreen by remember { mutableStateOf(initialScreen) }
 
             MaterialTheme {
                 Surface(
