@@ -1,5 +1,6 @@
 package com.example.quizzy;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import retrofit2.Call;
@@ -7,14 +8,10 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class QuizRepository {
-<<<<<<< HEAD
-    public static List<Question> currentQuizQuestions;
-    public static long currentSessionId = -1L;
-}
-=======
 
     // Used by InstructionsActivity.kt and QuizActivity
     public static List<Question> currentQuizQuestions = new ArrayList<>();
+    public static long currentSessionId = -1L;
 
     public interface BadgeCallback {
         void onSuccess(List<Badges> badges);
@@ -41,4 +38,3 @@ public class QuizRepository {
         });
     }
 }
->>>>>>> f18f804eab1c135ed53eb22813ed7b3c844dbe3e
