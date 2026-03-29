@@ -1,10 +1,14 @@
 package com.quizzy.backend.model;
 
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_badges")
+@Table(
+        name = "user_badges",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "badge_id"})
+)
 public class UserBadge {
 
     @Id
@@ -20,7 +24,7 @@ public class UserBadge {
     private Badge badge;
 
     @Column(nullable = false)
-    private boolean unlocked;
+    private boolean unlocked = true;
 
     @Column(name = "unlocked_at")
     private LocalDateTime unlockedAt;
