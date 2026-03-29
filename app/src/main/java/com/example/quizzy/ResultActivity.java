@@ -30,7 +30,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class ResultActivity extends AppCompatActivity {
-
+//TODO: Check future results enhancements
     private LinearLayout achievementsContainer;
     private SessionManager sessionManager;
     private TextView tvResultTitle;
