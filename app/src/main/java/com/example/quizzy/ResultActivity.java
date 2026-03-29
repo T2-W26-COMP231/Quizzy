@@ -1,24 +1,24 @@
 package com.example.quizzy;
 
-import android.content.Intent;
-import android.graphics.Color;
 import android.os.Bundle;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.cardview.widget.CardView;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class ResultActivity extends AppCompatActivity {
 
     private TextView tvFinalScore;
     private TextView tvResultMessage;
     private LinearLayout achievementsContainer;
-    private Button btnBackToDashboard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,7 +28,6 @@ public class ResultActivity extends AppCompatActivity {
         tvFinalScore = findViewById(R.id.tvFinalScore);
         tvResultMessage = findViewById(R.id.tvResultMessage);
         achievementsContainer = findViewById(R.id.achievementsContainer);
-        btnBackToDashboard = findViewById(R.id.btnBackToDashboard);
 
         int score = getIntent().getIntExtra("score", 0);
         int totalQuestions = getIntent().getIntExtra("totalQuestions", 0);
@@ -38,76 +37,45 @@ public class ResultActivity extends AppCompatActivity {
 
         tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
 
-        // Use BadgeManager to get real earned badges from SharedPreferences
-        List<Badges> allBadges = BadgeCatalog.getAllBadges();
-        List<Badges> earnedBadges = BadgeManager.getEarnedBadges(this);
+        loadBadgesFromBackend();
+    }
 
-        List<AchievementDisplayItem> displayItems =
-                AchievementProcessor.prepareAchievementsForDisplay(
-                        allBadges,
-                        earnedBadges,
-                        score,
-                        totalQuestions
-                );
+    private void loadBadgesFromBackend() {
+        BadgeApiService api = RetrofitClient.getInstance().create(BadgeApiService.class);
+        int userId = 1;
 
-        showAchievements(displayItems);
+        api.getUserBadges(userId).enqueue(new Callback<List<Badges>>() {
+            @Override
+            public void onResponse(Call<List<Badges>> call, Response<List<Badges>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Badges> unlocked = new ArrayList<>();
 
-        btnBackToDashboard.setOnClickListener(v -> {
-            Intent intent = new Intent(ResultActivity.this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-            finish();
+                    for (Badges badge : response.body()) {
+                        if (badge.isUnlocked()) {
+                            unlocked.add(badge);
+                        }
+                    }
+
+                    displayBadges(unlocked);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Badges>> call, Throwable t) {
+                t.printStackTrace();
+            }
         });
     }
 
-    private void showAchievements(List<AchievementDisplayItem> items) {
+    private void displayBadges(List<Badges> badges) {
         achievementsContainer.removeAllViews();
 
-        for (AchievementDisplayItem item : items) {
-            CardView cardView = new CardView(this);
-            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            cardParams.setMargins(0, 0, 0, 24);
-            cardView.setLayoutParams(cardParams);
-            cardView.setRadius(24f);
-            cardView.setCardElevation(8f);
-            cardView.setUseCompatPadding(true);
-            cardView.setCardBackgroundColor(item.isUnlocked()
-                    ? Color.parseColor("#E8F5E9")
-                    : Color.parseColor("#FFF3E0"));
-
-            LinearLayout contentLayout = new LinearLayout(this);
-            contentLayout.setOrientation(LinearLayout.VERTICAL);
-            contentLayout.setPadding(32, 32, 32, 32);
-
-            TextView tvTitle = new TextView(this);
-            tvTitle.setText(item.getTitle());
-            tvTitle.setTextSize(20f);
-            tvTitle.setTextColor(Color.parseColor("#5A4A3B"));
-            tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-
-            TextView tvDescription = new TextView(this);
-            tvDescription.setText(item.getDescription());
-            tvDescription.setTextSize(16f);
-            tvDescription.setTextColor(Color.parseColor("#7B6A58"));
-            tvDescription.setPadding(0, 12, 0, 12);
-
-            TextView tvStatus = new TextView(this);
-            tvStatus.setText(item.getStatusText());
-            tvStatus.setTextSize(15f);
-            tvStatus.setTypeface(null, android.graphics.Typeface.BOLD);
-            tvStatus.setTextColor(item.isUnlocked()
-                    ? Color.parseColor("#2E7D32")
-                    : Color.parseColor("#EF6C00"));
-
-            contentLayout.addView(tvTitle);
-            contentLayout.addView(tvDescription);
-            contentLayout.addView(tvStatus);
-
-            cardView.addView(contentLayout);
-            achievementsContainer.addView(cardView);
+        for (Badges badge : badges) {
+            TextView badgeView = new TextView(this);
+            badgeView.setText("🏆 " + badge.getName());
+            badgeView.setTextSize(18f);
+            badgeView.setPadding(0, 12, 0, 12);
+            achievementsContainer.addView(badgeView);
         }
     }
 }

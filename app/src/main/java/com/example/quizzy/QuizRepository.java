@@ -9,7 +9,6 @@ import retrofit2.Response;
 
 public class QuizRepository {
 
-    // Used by InstructionsActivity.kt and QuizActivity
     public static List<Question> currentQuizQuestions = new ArrayList<>();
 
     public interface BadgeCallback {
@@ -18,7 +17,7 @@ public class QuizRepository {
     }
 
     public static void getUserBadges(int userId, BadgeCallback callback) {
-        BadgeApiService apiService = RetrofitClient.getClient().create(BadgeApiService.class);
+        BadgeApiService apiService = RetrofitClient.getInstance().create(BadgeApiService.class);
 
         apiService.getUserBadges(userId).enqueue(new Callback<List<Badges>>() {
             @Override
