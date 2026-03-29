@@ -45,7 +45,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            var currentScreen by remember { mutableStateOf("Home") }
+            val initialScreen = intent.getStringExtra("start_screen") ?: "Home"
+            var currentScreen by remember { mutableStateOf(initialScreen) }
 
             MaterialTheme {
                 Surface(
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
                                 "Home", "Dashboard" -> DashboardScreen(
                                     onStartQuiz = { currentScreen = "QuizSelection" }
                                 )
+
                                 "QuizSelection" -> QuizSelectionScreen(
                                     onGradeSelected = { gradeLevel, gradeName ->
                                         val intent = Intent(this@MainActivity, InstructionsActivity::class.java).apply {
@@ -74,7 +76,14 @@ class MainActivity : ComponentActivity() {
                                         startActivity(intent)
                                     }
                                 )
-                                "Achievements" -> PlaceholderScreen("Achievements")
+
+                                "Achievements" -> {
+                                    LaunchedEffect(Unit) {
+                                        startActivity(Intent(this@MainActivity, AchievementsActivity::class.java))
+                                        currentScreen = "Home"
+                                    }
+                                }
+
                                 "Guardian" -> PlaceholderScreen("Guardian Dashboard")
                                 "Settings" -> SettingsScreen()
                             }
