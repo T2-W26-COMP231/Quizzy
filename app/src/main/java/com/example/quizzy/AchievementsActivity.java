@@ -1,5 +1,6 @@
 package com.example.quizzy;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -22,10 +23,52 @@ public class AchievementsActivity extends AppCompatActivity {
 
         achievementsContainer = findViewById(R.id.achievementsContainer);
 
-        int userId = 1;
-        List<Badges> badges = QuizRepository.getUserBadges(userId);
+        findViewById(R.id.navHome).setOnClickListener(v -> {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.putExtra("start_screen", "Home");
+            startActivity(intent);
+            finish();
+        });
 
-        showBadges(badges);
+        findViewById(R.id.navAwards).setOnClickListener(v -> {
+            // already here
+        });
+
+        findViewById(R.id.navGuardian).setOnClickListener(v -> {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.putExtra("start_screen", "Guardian");
+            startActivity(intent);
+            finish();
+        });
+
+        findViewById(R.id.navSettings).setOnClickListener(v -> {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.putExtra("start_screen", "Settings");
+            startActivity(intent);
+            finish();
+        });
+
+        int userId = 1;
+
+        QuizRepository.getUserBadges(userId, new QuizRepository.BadgeCallback() {
+            @Override
+            public void onSuccess(List<Badges> badges) {
+                showBadges(badges);
+            }
+
+            @Override
+            public void onError(String error) {
+                achievementsContainer.removeAllViews();
+
+                TextView errorView = new TextView(AchievementsActivity.this);
+                errorView.setText("Error loading badges: " + error);
+                errorView.setTextSize(18f);
+                errorView.setTextColor(Color.RED);
+                errorView.setPadding(20, 40, 20, 20);
+
+                achievementsContainer.addView(errorView);
+            }
+        });
     }
 
     private void showBadges(List<Badges> badges) {
@@ -42,10 +85,7 @@ public class AchievementsActivity extends AppCompatActivity {
             return;
         }
 
-        int maxToShow = Math.min(badges.size(), 10);
-
-        for (int i = 0; i < maxToShow; i++) {
-            Badges badge = badges.get(i);
+        for (Badges badge : badges) {
             boolean unlocked = badge.isUnlocked();
 
             LinearLayout row = new LinearLayout(this);
@@ -70,7 +110,7 @@ public class AchievementsActivity extends AppCompatActivity {
             title.setTypeface(null, android.graphics.Typeface.BOLD);
             title.setTextColor(unlocked
                     ? Color.parseColor("#2F241C")
-                    : Color.parseColor("#9E9E9E"));
+                    : Color.parseColor("#BDBDBD"));
 
             TextView description = new TextView(this);
             description.setText(badge.getDescription());
@@ -78,7 +118,7 @@ public class AchievementsActivity extends AppCompatActivity {
             description.setPadding(0, 8, 0, 0);
             description.setTextColor(unlocked
                     ? Color.parseColor("#6E6257")
-                    : Color.parseColor("#BDBDBD"));
+                    : Color.parseColor("#D0D0D0"));
 
             TextView status = new TextView(this);
             status.setText(unlocked ? "Unlocked" : "Locked");
@@ -94,7 +134,6 @@ public class AchievementsActivity extends AppCompatActivity {
 
             row.addView(textLayout);
 
-            // Locked badges show trophy, unlocked badges show no icon
             if (!unlocked) {
                 TextView trophy = new TextView(this);
                 trophy.setText("🏆");
