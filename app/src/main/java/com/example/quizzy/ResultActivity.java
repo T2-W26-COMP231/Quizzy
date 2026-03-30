@@ -1,5 +1,6 @@
 package com.example.quizzy;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -8,6 +9,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -32,6 +34,7 @@ public class ResultActivity extends AppCompatActivity {
     private TextView tvResultTitle;
     private TextView tvFinalScore;
     private TextView tvResultMessage;
+    private Button btnBackToDashboard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +45,7 @@ public class ResultActivity extends AppCompatActivity {
         tvResultTitle = findViewById(R.id.tvResultTitle);
         tvFinalScore = findViewById(R.id.tvFinalScore);
         tvResultMessage = findViewById(R.id.tvResultMessage);
+        btnBackToDashboard = findViewById(R.id.btnBackToDashboard);
         sessionManager = new SessionManager(this);
 
         int score = getIntent().getIntExtra("score", 0);
@@ -58,6 +62,15 @@ public class ResultActivity extends AppCompatActivity {
 
         // Sync score and fetch new badges from backend
         syncScoreAndFetchNewBadges(score, totalQuestions);
+
+        if (btnBackToDashboard != null) {
+            btnBackToDashboard.setOnClickListener(v -> {
+                Intent intent = new Intent(ResultActivity.this, MainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(intent);
+                finish();
+            });
+        }
     }
 
     private void syncScoreAndFetchNewBadges(int correctAnswers, int totalQuestions) {
