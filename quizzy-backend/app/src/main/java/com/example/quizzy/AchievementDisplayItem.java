@@ -1,15 +1,15 @@
 package com.example.quizzy;
+
 public class AchievementDisplayItem {
+    private int id;
+    private String name;
+    private String description;
+    private boolean unlocked;
+    private String statusText;
 
-    private final int id;
-    private final String title;
-    private final String description;
-    private final boolean unlocked;
-    private final String statusText;
-
-    public AchievementDisplayItem(int id, String title, String description, boolean unlocked, String statusText) {
+    public AchievementDisplayItem(int id, String name, String description, boolean unlocked, String statusText) {
         this.id = id;
-        this.title = title;
+        this.name = name;
         this.description = description;
         this.unlocked = unlocked;
         this.statusText = statusText;
@@ -19,8 +19,8 @@ public class AchievementDisplayItem {
         return id;
     }
 
-    public String getTitle() {
-        return title;
+    public String getName() {
+        return name;
     }
 
     public String getDescription() {
