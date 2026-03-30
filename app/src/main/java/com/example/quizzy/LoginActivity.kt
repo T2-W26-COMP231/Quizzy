@@ -169,8 +169,18 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
                                 onFailure = { e ->
                                     val errorMessage = e.message ?: "An error occurred"
                                     val displayMessage = when {
-                                        errorMessage.contains("Username already exists", ignoreCase = true) -> "This username already exists"
-                                        errorMessage.contains("Email already exists", ignoreCase = true) -> "This email already exists"
+                                        errorMessage.contains("account doesn't exist", ignoreCase = true) -> "This account doesn't exist"
+                                        errorMessage.contains("username already exists", ignoreCase = true) -> "This username already exists"
+                                        errorMessage.contains("email already exists", ignoreCase = true) -> "This email already exists"
+                                        errorMessage.contains("Incorrect password", ignoreCase = true) -> "Incorrect password"
+                                        errorMessage.startsWith("Error 401:") -> {
+                                            try {
+                                                val jsonError = JSONObject(errorMessage.substringAfter("Error 401: "))
+                                                jsonError.optString("error", "This account doesn't exist")
+                                            } catch (je: Exception) {
+                                                "This account doesn't exist"
+                                            }
+                                        }
                                         errorMessage.startsWith("Error 400:") -> {
                                             try {
                                                 val jsonError = JSONObject(errorMessage.substringAfter("Error 400: "))

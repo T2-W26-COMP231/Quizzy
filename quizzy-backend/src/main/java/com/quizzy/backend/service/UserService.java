@@ -50,11 +50,14 @@ public class UserService {
         return savedUser;
     }
 
-    public Optional<User> login(String username, String password) {
-        return userRepository.findByUsername(username)
-                .filter(user -> {
-                    String storedPassword = user.getPasswordHash() != null ? user.getPasswordHash() : user.getPassword();
-                    return password.equals(storedPassword);
-                });
+    public User login(String username, String password) throws Exception {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new Exception("This account doesn't exist"));
+
+        String storedPassword = user.getPasswordHash() != null ? user.getPasswordHash() : user.getPassword();
+        if (!password.equals(storedPassword)) {
+            throw new Exception("Incorrect password");
+        }
+        return user;
     }
 }
