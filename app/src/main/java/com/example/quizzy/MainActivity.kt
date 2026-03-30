@@ -259,7 +259,6 @@ fun QuizSelectionScreen(
 fun GuardianDashboardScreen() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
-    var studentName by remember { mutableStateOf("Loading...") }
     var totalScore by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -267,11 +266,9 @@ fun GuardianDashboardScreen() {
 
     LaunchedEffect(Unit) {
         try {
-            // Using GET instead of POST as corrected in NetworkClient
             val result = NetworkClient.get("/guardian/$userId/student-score")
             result.fold(
                 onSuccess = { json ->
-                    studentName = json.optString("studentName", "Simon")
                     totalScore = json.optInt("totalScore", 0)
                     isLoading = false
                 },
@@ -319,12 +316,6 @@ fun GuardianDashboardScreen() {
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Name: $studentName",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF5A4A3B)
-                    )
                     Text(
                         text = "Total Score: $totalScore",
                         fontSize = 28.sp,
