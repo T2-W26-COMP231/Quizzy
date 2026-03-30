@@ -18,7 +18,7 @@ public class QuizService {
         this.sessionRepository = sessionRepository;
     }
 
-    public QuizResponse generateAndStore(String prompt) throws Exception {
+    public QuizResponse generateAndStore(String prompt, Integer userId) throws Exception {
         // 1. Llamar a la AI
         String rawJson = aiService.generateQuestionsJson(prompt);
 
@@ -28,6 +28,7 @@ public class QuizService {
         // 3. Guardar en DB (la sesión actual)
         QuizSession session = new QuizSession();
         session.setQuestionsJson(rawJson);
+        session.setUserId(userId); // Store the user ID tracking who started the session
         QuizSession saved = sessionRepository.save(session);
 
         // 4. Incluir el sessionId en la respuesta
