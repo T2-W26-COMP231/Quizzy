@@ -30,11 +30,14 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> loginData) {
-        String username = loginData.get("username");
-        String password = loginData.get("password");
-        
-        return userService.login(username, password)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(401).build());
+        try {
+            String username = loginData.get("username");
+            String password = loginData.get("password");
+            
+            User user = userService.login(username, password);
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+        }
     }
 }
