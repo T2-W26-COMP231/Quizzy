@@ -21,7 +21,7 @@ public class GuardianController {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
 
-    public GuardianController(GuardianRepository guardianRepository,
+    public GuardianController(GuardianRepository guardianRepository, 
                               StudentRepository studentRepository,
                               UserRepository userRepository) {
         this.guardianRepository = guardianRepository;
@@ -39,21 +39,17 @@ public class GuardianController {
                 guardianRepository.save(newGuardian);
             }
 
-            // 2. Fetch the user's own student record and profile info
-            // Based on your instruction: "associate same user_id in users to same guardian in guardians"
+            // 2. Fetch the user's own student record info
+            // Association: same user_id in users to same user_id in students
             Optional<Student> studentOpt = studentRepository.findByUserId(userId);
-            Optional<User> userOpt = userRepository.findById(Long.valueOf(userId));
 
-            if (studentOpt.isPresent() && userOpt.isPresent()) {
+            if (studentOpt.isPresent()) {
                 Student student = studentOpt.get();
-                User user = userOpt.get();
-
                 return ResponseEntity.ok(Map.of(
-                    "studentName", user.getUsername(),
                     "totalScore", student.getTotalScore() != null ? student.getTotalScore() : 0
                 ));
             } else {
-                return ResponseEntity.status(404).body(Map.of("error", "Profile data for user " + userId + " not found"));
+                return ResponseEntity.status(404).body(Map.of("error", "Student record for user " + userId + " not found"));
             }
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));

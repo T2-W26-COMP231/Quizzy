@@ -1,4 +1,5 @@
 package com.example.quizzy;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -13,7 +14,7 @@ public class AchievementProcessor {
             int totalQuestions
     ) {
         List<AchievementDisplayItem> displayItems = new ArrayList<>();
-        Set<Integer> earnedIds = new HashSet<>();
+        Set<Long> earnedIds = new HashSet<>();
 
         if (earnedBadges != null) {
             for (Badges badge : earnedBadges) {
@@ -21,68 +22,76 @@ public class AchievementProcessor {
             }
         }
 
-        for (Badges badge : allBadges) {
-            boolean unlocked = earnedIds.contains(badge.getId());
-            String statusText = buildStatusText(badge.getId(), unlocked, score, totalQuestions);
+        if (allBadges != null) {
+            for (Badges badge : allBadges) {
+                boolean unlocked = earnedIds.contains(badge.getId());
+                String statusText = buildStatusText(badge.getId(), unlocked, score, totalQuestions);
 
-            displayItems.add(
-                    new AchievementDisplayItem(
-                            badge.getId(),
-                            badge.getName(),
-                            badge.getDescription(),
-                            unlocked,
-                            statusText
-                    )
-            );
+                displayItems.add(
+                        new AchievementDisplayItem(
+                                (int) badge.getId(),
+                                badge.getName(),
+                                badge.getDescription(),
+                                unlocked,
+                                statusText
+                        )
+                );
+            }
         }
 
         return displayItems;
     }
 
-    private static String buildStatusText(int badgeId, boolean unlocked, int score, int totalQuestions) {
+    public static String getResultMessage(int score, int totalQuestions) {
+        if (totalQuestions <= 0) {
+            return "Good try!";
+        }
+
+        double percent = (score * 100.0) / totalQuestions;
+
+        if (percent == 100.0) {
+            return "Amazing! Perfect score!";
+        } else if (percent >= 80.0) {
+            return "Great job! You did really well!";
+        } else if (percent >= 50.0) {
+            return "Nice work! Keep practicing!";
+        } else {
+            return "Don’t give up! Try again and improve!";
+        }
+    }
+
+    private static String buildStatusText(long badgeId, boolean unlocked, int score, int totalQuestions) {
         if (unlocked) {
             return "Unlocked";
         }
 
-        switch (badgeId) {
+        switch ((int) badgeId) {
             case 1:
-                return "Complete your first quiz to unlock";
+                return "Complete your first quiz";
             case 2:
-                return "Get all " + totalQuestions + " questions correct";
+                return "Score 100% on a quiz";
             case 3:
-                return "Score at least " + getRequiredHighAchieverScore(totalQuestions) + "/" + totalQuestions;
+                return "Score 80% or higher";
             case 4:
-                return "Try other quiz levels to unlock";
+                return "Try different quiz levels";
             case 5:
-                return "Complete more quizzes to unlock";
+                return "Complete 5 quizzes";
             case 6:
-                return "Complete more math quizzes to unlock";
+                return "Complete 3 math quizzes";
             case 7:
-                return "Keep playing to become a Math Master";
+                return "Complete 10 math quizzes";
             case 8:
-                return "Answer 3 questions correctly in a row";
+                return "Answer 3 questions in a row";
             case 9:
-                return "Improve your score in a future quiz";
+                return "Improve your score";
             case 10:
-                return "Earn more badges to unlock";
+                return "Earn 5 badges";
+            case 11:
+                return "Reach 10 total points";
+            case 12:
+                return "Reach 100 total points";
             default:
                 return "Locked";
-        }
-    }
-
-    private static int getRequiredHighAchieverScore(int totalQuestions) {
-        return (int) Math.ceil(totalQuestions * 0.8);
-    }
-
-    public static String getResultMessage(int score, int totalQuestions) {
-        if (score == totalQuestions) {
-            return "Amazing! Perfect score!";
-        } else if (score >= Math.ceil(totalQuestions * 0.8)) {
-            return "Great job! You did very well!";
-        } else if (score >= Math.ceil(totalQuestions * 0.5)) {
-            return "Nice work! Keep practicing!";
-        } else {
-            return "Good try! Practice and come back stronger!";
         }
     }
 }

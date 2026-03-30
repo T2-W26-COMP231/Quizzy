@@ -1,7 +1,9 @@
 package com.quizzy.backend.service;
 
+import com.quizzy.backend.model.Guardian;
 import com.quizzy.backend.model.Student;
 import com.quizzy.backend.model.User;
+import com.quizzy.backend.repository.GuardianRepository;
 import com.quizzy.backend.repository.StudentRepository;
 import com.quizzy.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -14,10 +16,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
+    private final GuardianRepository guardianRepository;
 
-    public UserService(UserRepository userRepository, StudentRepository studentRepository) {
+    public UserService(UserRepository userRepository, StudentRepository studentRepository, GuardianRepository guardianRepository) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
+        this.guardianRepository = guardianRepository;
     }
 
     @Transactional
@@ -38,23 +42,29 @@ public class UserService {
         // 1. Save User
         User savedUser = userRepository.save(user);
 
-        // 2. If it's a student (default), create the Student profile
+        // 2. Create profile based on role
         if ("STUDENT".equalsIgnoreCase(savedUser.getRole())) {
             Student student = new Student();
-            // Use the generated user_id for the student table link
             student.setUserId(savedUser.getUserId());
             student.setTotalScore(0);
             studentRepository.save(student);
+        } else if ("GUARDIAN".equalsIgnoreCase(savedUser.getRole())) {
+            Guardian guardian = new Guardian();
+            guardian.setUserId(savedUser.getUserId());
+            guardianRepository.save(guardian);
         }
 
         return savedUser;
     }
 
-    public Optional<User> login(String username, String password) {
-        return userRepository.findByUsername(username)
-                .filter(user -> {
-                    String storedPassword = user.getPasswordHash() != null ? user.getPasswordHash() : user.getPassword();
-                    return password.equals(storedPassword);
-                });
+    public User login(String username, String password) throws Exception {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new Exception("This account doesn't exist"));
+
+        String storedPassword = user.getPasswordHash() != null ? user.getPasswordHash() : user.getPassword();
+        if (!password.equals(storedPassword)) {
+            throw new Exception("Incorrect password");
+        }
+        return user;
     }
 }

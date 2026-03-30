@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,21 +41,8 @@ public class ScoreController {
             Student student = studentRepository.findByUserId(userId)
                     .orElseThrow(() -> new Exception("Student not found for user_id: " + userId));
             
-            List<Map<String, Object>> quizScores = sessionRepository.findAll().stream()
-                    .filter(s -> s.getUserId() != null && s.getUserId().equals(userId))
-                    .map(s -> {
-                        Map<String, Object> scoreMap = new HashMap<>();
-                        scoreMap.put("sessionId", s.getId());
-                        scoreMap.put("score", s.getFinalscore());
-                        scoreMap.put("date", s.getCompletion());
-                        return scoreMap;
-                    })
-                    .collect(Collectors.toList());
-
             return ResponseEntity.ok(Map.of(
-                "userId", userId,
-                "totalScore", student.getTotalScore() != null ? student.getTotalScore() : 0,
-                "scores", quizScores
+                "totalScore", student.getTotalScore() != null ? student.getTotalScore() : 0
             ));
         } catch (Exception e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +34,33 @@ public class ScoreController {
         this.studentRepository = studentRepository;
         this.badgeRepository = badgeRepository;
         this.sessionRepository = sessionRepository;
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<?> getUserScore(@PathVariable Integer userId) {
+        try {
+            Student student = studentRepository.findByUserId(userId)
+                    .orElseThrow(() -> new Exception("Student not found for user_id: " + userId));
+            
+            List<Map<String, Object>> quizScores = sessionRepository.findAll().stream()
+                    .filter(s -> s.getUserId() != null && s.getUserId().equals(userId))
+                    .map(s -> {
+                        Map<String, Object> scoreMap = new HashMap<>();
+                        scoreMap.put("sessionId", s.getId());
+                        scoreMap.put("score", s.getFinalscore());
+                        scoreMap.put("date", s.getCompletion());
+                        return scoreMap;
+                    })
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(Map.of(
+                "userId", userId,
+                "totalScore", student.getTotalScore() != null ? student.getTotalScore() : 0,
+                "scores", quizScores
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/update")
@@ -114,8 +142,6 @@ public class ScoreController {
                         if (student.getTotalScore() >= reqVal) shouldUnlock = true;
                         break;
                     case "LEVELS_COUNT":
-                        // Since QuizSession doesn't have a level field, we can't count distinct levels.
-                        // For now, we'll use a placeholder or assume 1 level per session if needed.
                         if (userSessions.size() >= reqVal) shouldUnlock = true;
                         break;
                     case "STREAK":

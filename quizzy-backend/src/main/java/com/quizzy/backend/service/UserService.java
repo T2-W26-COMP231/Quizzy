@@ -1,9 +1,7 @@
 package com.quizzy.backend.service;
 
-import com.quizzy.backend.model.Guardian;
 import com.quizzy.backend.model.Student;
 import com.quizzy.backend.model.User;
-import com.quizzy.backend.repository.GuardianRepository;
 import com.quizzy.backend.repository.StudentRepository;
 import com.quizzy.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -16,12 +14,10 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
-    private final GuardianRepository guardianRepository;
 
-    public UserService(UserRepository userRepository, StudentRepository studentRepository, GuardianRepository guardianRepository) {
+    public UserService(UserRepository userRepository, StudentRepository studentRepository) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
-        this.guardianRepository = guardianRepository;
     }
 
     @Transactional
@@ -42,16 +38,13 @@ public class UserService {
         // 1. Save User
         User savedUser = userRepository.save(user);
 
-        // 2. Create profile based on role
+        // 2. If it's a student (default), create the Student profile
         if ("STUDENT".equalsIgnoreCase(savedUser.getRole())) {
             Student student = new Student();
+            // Use the generated user_id for the student table link
             student.setUserId(savedUser.getUserId());
             student.setTotalScore(0);
             studentRepository.save(student);
-        } else if ("GUARDIAN".equalsIgnoreCase(savedUser.getRole())) {
-            Guardian guardian = new Guardian();
-            guardian.setUserId(savedUser.getUserId());
-            guardianRepository.save(guardian);
         }
 
         return savedUser;

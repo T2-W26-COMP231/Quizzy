@@ -101,6 +101,29 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun DashboardScreen(onStartQuiz: () -> Unit) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    var totalScore by remember { mutableIntStateOf(0) }
+    var isLoading by remember { mutableStateOf(true) }
+    val userId = sessionManager.getUserId()
+
+    LaunchedEffect(Unit) {
+        try {
+            val result = NetworkClient.get("/score/user/$userId")
+            result.fold(
+                onSuccess = { json ->
+                    totalScore = json.optInt("totalScore", 0)
+                    isLoading = false
+                },
+                onFailure = {
+                    isLoading = false
+                }
+            )
+        } catch (e: Exception) {
+            isLoading = false
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -124,19 +147,18 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Fancier Quizzy Logo with App Colors
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Q",
                 fontSize = 80.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFFA874FF) // Purple from Grade 3
+                color = Color(0xFFA874FF)
             )
             Text(
                 text = "uizzy",
                 fontSize = 64.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF5A4A3B), // Dark Brown
+                color = Color(0xFF5A4A3B),
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
@@ -151,9 +173,70 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(80.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Pulsing Play Button - Rounded Rectangle
+        if (isLoading) {
+            CircularProgressIndicator(color = Color(0xFFA874FF))
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+                    .shadow(10.dp, RoundedCornerShape(28.dp))
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color(0xFFA874FF), Color(0xFFFFB26B))
+                        ),
+                        shape = RoundedCornerShape(28.dp)
+                    )
+                    .padding(24.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Total Score",
+                            fontSize = 16.sp,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = totalScore.toString(),
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Keep earning points!",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Score",
+                            tint = Color.White,
+                            modifier = Modifier.size(34.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(48.dp))
+
         Box(
             modifier = Modifier
                 .width(200.dp)
@@ -179,7 +262,8 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Start Quiz",
-                    modifier = Modifier.size(44.dp), tint = Color.White
+                    modifier = Modifier.size(44.dp),
+                    tint = Color.White
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -259,7 +343,7 @@ fun QuizSelectionScreen(
 fun GuardianDashboardScreen() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
-    var totalScore by remember { mutableStateOf(0) }
+    var totalScore by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
 
     val userId = sessionManager.getUserId()
@@ -349,7 +433,6 @@ fun SettingsScreen() {
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // User info card
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
@@ -373,7 +456,6 @@ fun SettingsScreen() {
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Logout Button
         Button(
             onClick = {
                 sessionManager.logout()
