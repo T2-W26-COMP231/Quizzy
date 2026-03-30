@@ -2,6 +2,7 @@ package com.example.quizzy
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,6 +30,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.quizzy.network.NetworkClient
+import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
 
@@ -84,7 +88,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
-                                "Guardian" -> PlaceholderScreen("Guardian Dashboard")
+                                "Guardian" -> GuardianDashboardScreen()
                                 "Settings" -> SettingsScreen()
                             }
                         }
@@ -175,8 +179,7 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Start Quiz",
-                    modifier = Modifier.size(44.dp),
-                    tint = Color.White
+                    modifier = Modifier.size(44.dp), tint = Color.White
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -249,6 +252,79 @@ fun QuizSelectionScreen(
             color = Color(0xFF6FE3C1),
             onClick = { onGradeSelected(5, "Grade 5") }
         )
+    }
+}
+
+@Composable
+fun GuardianDashboardScreen() {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    var totalScore by remember { mutableStateOf(0) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    val userId = sessionManager.getUserId()
+
+    LaunchedEffect(Unit) {
+        try {
+            val result = NetworkClient.get("/guardian/$userId/student-score")
+            result.fold(
+                onSuccess = { json ->
+                    totalScore = json.optInt("totalScore", 0)
+                    isLoading = false
+                },
+                onFailure = { error ->
+                    Log.e("GUARDIAN", "Fetch failed: ${error.message}")
+                    isLoading = false
+                }
+            )
+        } catch (e: Exception) {
+            Log.e("GUARDIAN", "Error: ${e.message}")
+            isLoading = false
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFFFFBF2))
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Guardian Dashboard",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color(0xFF5A4A3B)
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        if (isLoading) {
+            CircularProgressIndicator(color = Color(0xFFA874FF))
+        } else {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                shadowElevation = 8.dp
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        text = "Student Progress:",
+                        fontSize = 18.sp,
+                        color = Color(0xFF7B6A58),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Total Score: $totalScore",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFFA874FF)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -429,12 +505,5 @@ fun NavBarItem(
                 fontWeight = FontWeight.Bold
             )
         }
-    }
-}
-
-@Composable
-fun PlaceholderScreen(name: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = "$name Screen coming soon!", fontSize = 20.sp, color = Color(0xFF7B6A58))
     }
 }
