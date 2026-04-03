@@ -1,6 +1,6 @@
 package com.example.quizzy;
 
-import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -9,7 +9,6 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
-import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -28,13 +27,15 @@ import java.util.List;
 import java.util.Locale;
 
 public class ResultActivity extends AppCompatActivity {
-//TODO: Check future results enhancements
+    // TODO: Check future results enhancements
+    private static final String PREFS_NAME = "quizzy_progress";
+    private static final String KEY_TOTAL_SCORE = "total_score";
+
     private LinearLayout achievementsContainer;
     private SessionManager sessionManager;
     private TextView tvResultTitle;
     private TextView tvFinalScore;
     private TextView tvResultMessage;
-    private Button btnBackToDashboard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,32 +46,36 @@ public class ResultActivity extends AppCompatActivity {
         tvResultTitle = findViewById(R.id.tvResultTitle);
         tvFinalScore = findViewById(R.id.tvFinalScore);
         tvResultMessage = findViewById(R.id.tvResultMessage);
-        btnBackToDashboard = findViewById(R.id.btnBackToDashboard);
         sessionManager = new SessionManager(this);
 
         int score = getIntent().getIntExtra("score", 0);
         int totalQuestions = getIntent().getIntExtra("totalQuestions", 0);
 
+        // Save cumulative total score locally for dashboard display
+        saveTotalScore(score);
+
         // Display Score and Message
         if (tvFinalScore != null) {
             tvFinalScore.setText(String.format(Locale.getDefault(), "Score: %d / %d", score, totalQuestions));
         }
-        
+
         if (tvResultMessage != null) {
             tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
         }
 
         // Sync score and fetch new badges from backend
         syncScoreAndFetchNewBadges(score, totalQuestions);
+    }
 
-        if (btnBackToDashboard != null) {
-            btnBackToDashboard.setOnClickListener(v -> {
-                Intent intent = new Intent(ResultActivity.this, MainActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                startActivity(intent);
-                finish();
-            });
-        }
+    private void saveTotalScore(int latestQuizScore) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        int currentTotal = prefs.getInt(KEY_TOTAL_SCORE, 0);
+
+        prefs.edit()
+                .putInt(KEY_TOTAL_SCORE, currentTotal + latestQuizScore)
+                .apply();
+
+        Log.d("TOTAL_SCORE", "Saved total score: " + (currentTotal + latestQuizScore));
     }
 
     private void syncScoreAndFetchNewBadges(int correctAnswers, int totalQuestions) {
@@ -98,7 +103,7 @@ public class ResultActivity extends AppCompatActivity {
                     // The backend returns 'newBadges' field
                     JSONObject response = NetworkClient.postSync("/score/update", body);
                     Log.d("SYNC", "Score synced successfully. Response: " + response.toString());
-                    
+
                     List<Badges> newlyEarned = new ArrayList<>();
                     if (response.has("newBadges")) {
                         JSONArray badgesArray = response.getJSONArray("newBadges");
@@ -139,12 +144,12 @@ public class ResultActivity extends AppCompatActivity {
         for (int i = 0; i < badges.size(); i++) {
             Badges badge = badges.get(i);
             View badgeView = createBadgeCard(badge);
-            
+
             // Basic entry animation
             badgeView.setAlpha(0f);
             badgeView.setTranslationY(50f);
             achievementsContainer.addView(badgeView);
-            
+
             badgeView.animate()
                     .alpha(1f)
                     .translationY(0f)
@@ -166,18 +171,18 @@ public class ResultActivity extends AppCompatActivity {
         cardView.setRadius(32f);
         cardView.setCardElevation(12f);
         cardView.setUseCompatPadding(true);
-        
+
         // Gradient Background for the card
         GradientDrawable gradient = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                new int[] { Color.parseColor("#FFFFFF"), Color.parseColor("#F5F0FF") }
+                new int[]{Color.parseColor("#FFFFFF"), Color.parseColor("#F5F0FF")}
         );
         gradient.setCornerRadius(32f);
         cardView.setBackground(gradient);
 
         // FrameLayout to allow overlapping "NEW" tag
         FrameLayout rootLayout = new FrameLayout(this);
-        
+
         // Content Layout
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.HORIZONTAL);
@@ -193,7 +198,7 @@ public class ResultActivity extends AppCompatActivity {
         // Text Info
         LinearLayout textLayout = new LinearLayout(this);
         textLayout.setOrientation(LinearLayout.VERTICAL);
-        
+
         TextView tvName = new TextView(this);
         tvName.setText(badge.getName());
         tvName.setTextSize(22f);
@@ -211,7 +216,7 @@ public class ResultActivity extends AppCompatActivity {
 
         contentLayout.addView(iconView);
         contentLayout.addView(textLayout);
-        
+
         rootLayout.addView(contentLayout);
 
         // "NEW" Mark Circle
@@ -221,20 +226,20 @@ public class ResultActivity extends AppCompatActivity {
         newMark.setTextColor(Color.WHITE);
         newMark.setTypeface(null, Typeface.BOLD);
         newMark.setGravity(Gravity.CENTER);
-        
+
         int size = 80; // px
         FrameLayout.LayoutParams newParams = new FrameLayout.LayoutParams(size, size);
         newParams.gravity = Gravity.TOP | Gravity.END;
         newParams.setMargins(0, 16, 16, 0);
         newMark.setLayoutParams(newParams);
-        
+
         GradientDrawable circle = new GradientDrawable();
         circle.setShape(GradientDrawable.OVAL);
         circle.setColor(Color.parseColor("#FF4081")); // Pink accent
         newMark.setBackground(circle);
 
         rootLayout.addView(newMark);
-        
+
         cardView.addView(rootLayout);
         return cardView;
     }

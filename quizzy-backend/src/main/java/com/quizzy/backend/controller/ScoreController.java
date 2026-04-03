@@ -42,8 +42,10 @@ public class ScoreController {
             Student student = studentRepository.findByUserId(userId)
                     .orElseThrow(() -> new Exception("Student not found for user_id: " + userId));
             
-            List<Map<String, Object>> quizScores = sessionRepository.findAll().stream()
-                    .filter(s -> s.getUserId() != null && s.getUserId().equals(userId))
+            // Logic to get the last 15 quiz sessions for further display
+            List<QuizSession> last15Sessions = sessionRepository.findTop15ByUserIdAndCompletionIsNotNullOrderByCompletionDesc(userId);
+
+            List<Map<String, Object>> quizScores = last15Sessions.stream()
                     .map(s -> {
                         Map<String, Object> scoreMap = new HashMap<>();
                         scoreMap.put("sessionId", s.getId());
@@ -62,6 +64,19 @@ public class ScoreController {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
     }
+
+    /*
+    // TESTING ENDPOINT: Uncomment the following method to test the retrieval of the last 15 quiz sessions.
+    @GetMapping("/test/history/{userId}")
+    public ResponseEntity<?> testGetLast15Sessions(@PathVariable Integer userId) {
+        try {
+            List<QuizSession> last15Sessions = sessionRepository.findTop15ByUserIdAndCompletionIsNotNullOrderByCompletionDesc(userId);
+            return ResponseEntity.ok(last15Sessions);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+    */
 
     @PostMapping("/update")
     @Transactional
