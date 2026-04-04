@@ -1,9 +1,7 @@
 package com.example.quizzy
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,8 +12,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,9 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.quizzy.network.NetworkClient
-import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
 
@@ -89,7 +84,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
-                                "Guardian" -> GuardianDashboardScreen()
+                                "Guardian" -> PlaceholderScreen("Guardian Dashboard")
                                 "Settings" -> SettingsScreen()
                             }
                         }
@@ -102,29 +97,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun DashboardScreen(onStartQuiz: () -> Unit) {
-    val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
-    var totalScore by remember { mutableIntStateOf(0) }
-    var isLoading by remember { mutableStateOf(true) }
-    val userId = sessionManager.getUserId()
-
-    LaunchedEffect(Unit) {
-        try {
-            val result = NetworkClient.get("/score/user/$userId")
-            result.fold(
-                onSuccess = { json ->
-                    totalScore = json.optInt("totalScore", 0)
-                    isLoading = false
-                },
-                onFailure = {
-                    isLoading = false
-                }
-            )
-        } catch (e: Exception) {
-            isLoading = false
-        }
-    }
-
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -148,18 +120,19 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Fancier Quizzy Logo with App Colors
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Q",
                 fontSize = 80.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFFA874FF)
+                color = Color(0xFFA874FF) // Purple from Grade 3
             )
             Text(
                 text = "uizzy",
                 fontSize = 64.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF5A4A3B),
+                color = Color(0xFF5A4A3B), // Dark Brown
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
@@ -174,70 +147,9 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(80.dp))
 
-        if (isLoading) {
-            CircularProgressIndicator(color = Color(0xFFA874FF))
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .shadow(10.dp, RoundedCornerShape(28.dp))
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Color(0xFFA874FF), Color(0xFFFFB26B))
-                        ),
-                        shape = RoundedCornerShape(28.dp)
-                    )
-                    .padding(24.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "Total Score",
-                            fontSize = 16.sp,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = totalScore.toString(),
-                            fontSize = 36.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Keep earning points!",
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.85f)
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Score",
-                            tint = Color.White,
-                            modifier = Modifier.size(34.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
+        // Pulsing Play Button - Rounded Rectangle
         Box(
             modifier = Modifier
                 .width(200.dp)
@@ -341,79 +253,6 @@ fun QuizSelectionScreen(
 }
 
 @Composable
-fun GuardianDashboardScreen() {
-    val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
-    var totalScore by remember { mutableIntStateOf(0) }
-    var isLoading by remember { mutableStateOf(true) }
-
-    val userId = sessionManager.getUserId()
-
-    LaunchedEffect(Unit) {
-        try {
-            val result = NetworkClient.get("/guardian/$userId/student-score")
-            result.fold(
-                onSuccess = { json ->
-                    totalScore = json.optInt("totalScore", 0)
-                    isLoading = false
-                },
-                onFailure = { error ->
-                    Log.e("GUARDIAN", "Fetch failed: ${error.message}")
-                    isLoading = false
-                }
-            )
-        } catch (e: Exception) {
-            Log.e("GUARDIAN", "Error: ${e.message}")
-            isLoading = false
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFFFFBF2))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Guardian Dashboard",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF5A4A3B)
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        if (isLoading) {
-            CircularProgressIndicator(color = Color(0xFFA874FF))
-        } else {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White,
-                shadowElevation = 8.dp
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text(
-                        text = "Student Progress:",
-                        fontSize = 18.sp,
-                        color = Color(0xFF7B6A58),
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Total Score: $totalScore",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFFA874FF)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun SettingsScreen() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
@@ -434,6 +273,7 @@ fun SettingsScreen() {
 
         Spacer(modifier = Modifier.height(48.dp))
 
+        // User info card
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
@@ -457,6 +297,7 @@ fun SettingsScreen() {
 
         Spacer(modifier = Modifier.weight(1f))
 
+        // Logout Button
         Button(
             onClick = {
                 sessionManager.logout()
@@ -588,5 +429,12 @@ fun NavBarItem(
                 fontWeight = FontWeight.Bold
             )
         }
+    }
+}
+
+@Composable
+fun PlaceholderScreen(name: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = "$name Screen coming soon!", fontSize = 20.sp, color = Color(0xFF7B6A58))
     }
 }

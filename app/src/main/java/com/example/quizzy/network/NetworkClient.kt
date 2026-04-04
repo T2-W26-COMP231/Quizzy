@@ -13,20 +13,10 @@ import java.net.URL
 object NetworkClient {
     private const val BASE_URL = "http://10.0.2.2:3000/api"
 
-    // Suspend version for Kotlin POST
+    // Suspend version for Kotlin
     suspend fun post(endpoint: String, body: JSONObject): Result<JSONObject> = withContext(Dispatchers.IO) {
         try {
-            val result = executeRequest("POST", endpoint, body)
-            Result.success(result)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    // Suspend version for Kotlin GET
-    suspend fun get(endpoint: String): Result<JSONObject> = withContext(Dispatchers.IO) {
-        try {
-            val result = executeRequest("GET", endpoint, null)
+            val result = executePost(endpoint, body)
             Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
@@ -36,24 +26,22 @@ object NetworkClient {
     // Synchronous version for Java callers (should be called on background thread)
     @JvmStatic
     fun postSync(endpoint: String, body: JSONObject): JSONObject {
-        return executeRequest("POST", endpoint, body)
+        return executePost(endpoint, body)
     }
 
-    private fun executeRequest(method: String, endpoint: String, body: JSONObject?): JSONObject {
+    private fun executePost(endpoint: String, body: JSONObject): JSONObject {
         val url = URL("$BASE_URL$endpoint")
         val connection = url.openConnection() as HttpURLConnection
-        connection.requestMethod = method
+        connection.requestMethod = "POST"
         connection.setRequestProperty("Content-Type", "application/json")
+        connection.doOutput = true
         connection.connectTimeout = 10000
         connection.readTimeout = 10000
 
-        if (body != null && (method == "POST" || method == "PUT")) {
-            connection.doOutput = true
-            val writer = OutputStreamWriter(connection.outputStream)
-            writer.write(body.toString())
-            writer.flush()
-            writer.close()
-        }
+        val writer = OutputStreamWriter(connection.outputStream)
+        writer.write(body.toString())
+        writer.flush()
+        writer.close()
 
         val responseCode = connection.responseCode
         val responseText = readResponse(connection)

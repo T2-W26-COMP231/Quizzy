@@ -63,7 +63,7 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
     var password by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val sessionManager = remember { SessionManager(context) }

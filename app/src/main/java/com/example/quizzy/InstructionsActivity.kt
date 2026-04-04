@@ -119,12 +119,13 @@ fun InstructionsScreen(
                 context.startActivity(intent)
                 (context as? InstructionsActivity)?.finish()
             } else {
-                errorMessage = "Oops, something went wrong."
+                errorMessage = "No questions received from server."
             }
 
         } catch (e: Exception) {
-            errorMessage = "Oops, something went wrong."
-            Log.e(TAG, "Screen load failed", e)
+            // Fallback to mock data if backend fails
+            Log.e(TAG, "Backend failed, using mock data", e)
+            useMockData(context)
         } finally {
             isLoading = false
         }
@@ -171,6 +172,21 @@ fun InstructionsScreen(
             }
         }
     }
+}
+
+private fun useMockData(context: android.content.Context) {
+    QuizRepository.currentQuizQuestions = listOf(
+        Question("What is 5 + 3?", "6", "7", "8", "9", "8"),
+        Question("What is 10 - 4?", "5", "6", "7", "8", "6"),
+        Question("What is 2 * 3?", "4", "5", "6", "7", "6"),
+        Question("What is 12 / 4?", "2", "3", "4", "5", "3"),
+        Question("What is 15 + 5?", "18", "19", "20", "21", "20")
+    )
+    QuizRepository.currentSessionId = -1L
+    
+    val intent = Intent(context, QuizActivity::class.java)
+    context.startActivity(intent)
+    (context as? InstructionsActivity)?.finish()
 }
 
 fun buildPromptForGrade(gradeLevel: Int): String {
