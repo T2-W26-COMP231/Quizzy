@@ -50,8 +50,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val initialScreen = intent.getStringExtra("start_screen") ?: "Home"
-            var currentScreen by remember { mutableStateOf(initialScreen) }
+            // Observe intent changes to handle "start_screen" correctly when re-launching the activity
+            var currentScreen by remember { mutableStateOf("Home") }
+            
+            LaunchedEffect(intent) {
+                val startScreen = intent.getStringExtra("start_screen")
+                if (startScreen != null) {
+                    currentScreen = startScreen
+                }
+            }
 
             MaterialTheme {
                 Surface(
@@ -97,6 +104,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent) // Important to update the intent so LaunchedEffect(intent) triggers
     }
 }
 
@@ -530,7 +542,7 @@ fun FancyNavigationBar(
             NavBarItem(
                 icon = Icons.Default.Home,
                 label = "Home",
-                isSelected = currentScreen == "Home" || currentScreen == "Dashboard" || currentScreen == "QuizSelection",
+                isSelected = currentScreen == "Home" || currentScreen == "Dashboard",
                 onClick = { onTabSelected("Home") }
             )
             NavBarItem(

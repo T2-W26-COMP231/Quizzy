@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,24 +46,49 @@ public class ScoreController {
             // Logic to get the last 15 quiz sessions for further display
             List<QuizSession> last15Sessions = sessionRepository.findTop15ByUserIdAndCompletionIsNotNullOrderByCompletionDesc(userId);
 
-            List<Map<String, Object>> quizScores = last15Sessions.stream()
-                    .map(s -> {
-                        Map<String, Object> scoreMap = new HashMap<>();
-                        scoreMap.put("sessionId", s.getId());
-                        scoreMap.put("score", s.getFinalscore());
-                        scoreMap.put("date", s.getCompletion());
-                        return scoreMap;
-                    })
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime startOfToday = now.toLocalDate().atStartOfDay();
+            LocalDateTime startOfWeek = now.toLocalDate().minusDays(now.getDayOfWeek().getValue() - 1).atStartOfDay();
+            LocalDateTime startOfMonth = now.toLocalDate().withDayOfMonth(1).atStartOfDay();
+
+            List<Map<String, Object>> allScores = last15Sessions.stream()
+                    .map(this::mapSessionToMap)
+                    .collect(Collectors.toList());
+
+            List<Map<String, Object>> dailyScores = last15Sessions.stream()
+                    .filter(s -> s.getCompletion() != null && !s.getCompletion().isBefore(startOfToday))
+                    .map(this::mapSessionToMap)
+                    .collect(Collectors.toList());
+
+            List<Map<String, Object>> weeklyScores = last15Sessions.stream()
+                    .filter(s -> s.getCompletion() != null && !s.getCompletion().isBefore(startOfWeek))
+                    .map(this::mapSessionToMap)
+                    .collect(Collectors.toList());
+
+            List<Map<String, Object>> monthlyScores = last15Sessions.stream()
+                    .filter(s -> s.getCompletion() != null && !s.getCompletion().isBefore(startOfMonth))
+                    .map(this::mapSessionToMap)
                     .collect(Collectors.toList());
 
             return ResponseEntity.ok(Map.of(
                 "userId", userId,
                 "totalScore", student.getTotalScore() != null ? student.getTotalScore() : 0,
-                "scores", quizScores
+                "scores", allScores,
+                "dailyScores", dailyScores,
+                "weeklyScores", weeklyScores,
+                "monthlyScores", monthlyScores
             ));
         } catch (Exception e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private Map<String, Object> mapSessionToMap(QuizSession s) {
+        Map<String, Object> scoreMap = new HashMap<>();
+        scoreMap.put("sessionId", s.getId());
+        scoreMap.put("score", s.getFinalscore());
+        scoreMap.put("date", s.getCompletion());
+        return scoreMap;
     }
 
     /*
