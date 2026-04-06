@@ -34,12 +34,16 @@ import androidx.compose.ui.unit.sp
 import com.example.quizzy.network.NetworkClient
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
+import org.json.JSONArray
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         val sessionManager = SessionManager(this)
         if (!sessionManager.isLoggedIn()) {
             startActivity(Intent(this, LoginActivity::class.java))
@@ -52,7 +56,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Observe intent changes to handle "start_screen" correctly when re-launching the activity
             var currentScreen by remember { mutableStateOf("Home") }
-            
+
             LaunchedEffect(intent) {
                 val startScreen = intent.getStringExtra("start_screen")
                 if (startScreen != null) {
@@ -81,7 +85,10 @@ class MainActivity : ComponentActivity() {
 
                                 "QuizSelection" -> QuizSelectionScreen(
                                     onGradeSelected = { gradeLevel, gradeName ->
-                                        val intent = Intent(this@MainActivity, InstructionsActivity::class.java).apply {
+                                        val intent = Intent(
+                                            this@MainActivity,
+                                            InstructionsActivity::class.java
+                                        ).apply {
                                             putExtra("GRADE_LEVEL", gradeLevel)
                                             putExtra("GRADE_NAME", gradeName)
                                         }
@@ -91,7 +98,12 @@ class MainActivity : ComponentActivity() {
 
                                 "Achievements" -> {
                                     LaunchedEffect(Unit) {
-                                        startActivity(Intent(this@MainActivity, AchievementsActivity::class.java))
+                                        startActivity(
+                                            Intent(
+                                                this@MainActivity,
+                                                AchievementsActivity::class.java
+                                            )
+                                        )
                                         currentScreen = "Home"
                                     }
                                 }
@@ -352,6 +364,12 @@ fun QuizSelectionScreen(
     }
 }
 
+data class StudentScoreItem(
+    val title: String,
+    val score: Int,
+    val period: String
+)
+
 @Composable
 fun GuardianDashboardScreen() {
     val context = LocalContext.current
@@ -567,7 +585,7 @@ fun SettingsScreen() {
                 fontWeight = FontWeight.Bold
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
