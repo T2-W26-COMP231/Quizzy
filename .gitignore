@@ -49,6 +49,7 @@ build/
 !**/src/test/**/build/
 quizzy-backend/src/main/resources/application.properties
 src/main/resources/application.properties
+C:/Projects/Quizzy-copy/quizzy-backend/src/main/resources/application.properties
 ### VS Code ###
 .vscode/
 

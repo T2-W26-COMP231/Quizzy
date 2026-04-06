@@ -1,5 +1,6 @@
 package com.example.quizzy;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -9,6 +10,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -36,6 +38,7 @@ public class ResultActivity extends AppCompatActivity {
     private TextView tvResultTitle;
     private TextView tvFinalScore;
     private TextView tvResultMessage;
+    private Button btnBackToDashboard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +49,7 @@ public class ResultActivity extends AppCompatActivity {
         tvResultTitle = findViewById(R.id.tvResultTitle);
         tvFinalScore = findViewById(R.id.tvFinalScore);
         tvResultMessage = findViewById(R.id.tvResultMessage);
+        btnBackToDashboard = findViewById(R.id.btnBackToDashboard);
         sessionManager = new SessionManager(this);
 
         int score = getIntent().getIntExtra("score", 0);
@@ -61,6 +65,16 @@ public class ResultActivity extends AppCompatActivity {
 
         if (tvResultMessage != null) {
             tvResultMessage.setText(AchievementProcessor.getResultMessage(score, totalQuestions));
+        }
+
+        if (btnBackToDashboard != null) {
+            btnBackToDashboard.setOnClickListener(v -> {
+                Intent intent = new Intent(ResultActivity.this, MainActivity.class);
+                intent.putExtra("start_screen", "Home");
+                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+                finish();
+            });
         }
 
         // Sync score and fetch new badges from backend
