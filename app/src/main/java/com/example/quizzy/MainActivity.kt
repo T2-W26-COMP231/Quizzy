@@ -34,12 +34,16 @@ import androidx.compose.ui.unit.sp
 import com.example.quizzy.network.NetworkClient
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
+import org.json.JSONArray
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         val sessionManager = SessionManager(this)
         if (!sessionManager.isLoggedIn()) {
             startActivity(Intent(this, LoginActivity::class.java))
@@ -52,7 +56,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Observe intent changes to handle "start_screen" correctly when re-launching the activity
             var currentScreen by remember { mutableStateOf("Home") }
-            
+
             LaunchedEffect(intent) {
                 val startScreen = intent.getStringExtra("start_screen")
                 if (startScreen != null) {
@@ -81,7 +85,10 @@ class MainActivity : ComponentActivity() {
 
                                 "QuizSelection" -> QuizSelectionScreen(
                                     onGradeSelected = { gradeLevel, gradeName ->
-                                        val intent = Intent(this@MainActivity, InstructionsActivity::class.java).apply {
+                                        val intent = Intent(
+                                            this@MainActivity,
+                                            InstructionsActivity::class.java
+                                        ).apply {
                                             putExtra("GRADE_LEVEL", gradeLevel)
                                             putExtra("GRADE_NAME", gradeName)
                                         }
@@ -91,7 +98,12 @@ class MainActivity : ComponentActivity() {
 
                                 "Achievements" -> {
                                     LaunchedEffect(Unit) {
-                                        startActivity(Intent(this@MainActivity, AchievementsActivity::class.java))
+                                        startActivity(
+                                            Intent(
+                                                this@MainActivity,
+                                                AchievementsActivity::class.java
+                                            )
+                                        )
                                         currentScreen = "Home"
                                     }
                                 }
@@ -175,9 +187,9 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "Ready to test your knowledge?",
             fontSize = 20.sp,
@@ -288,7 +300,7 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(48.dp))
     }
 }
@@ -352,14 +364,34 @@ fun QuizSelectionScreen(
     }
 }
 
+data class StudentScoreItem(
+    val title: String,
+    val score: Int,
+    val period: String
+)
+
 @Composable
 fun GuardianDashboardScreen() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+
     var totalScore by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
 
+    var allScores by remember { mutableStateOf(listOf<StudentScoreItem>()) }
+    var displayedScores by remember { mutableStateOf(listOf<StudentScoreItem>()) }
+    var selectedFilter by remember { mutableStateOf("All") }
+
     val userId = sessionManager.getUserId()
+
+    fun applyFilter(filter: String) {
+        selectedFilter = filter
+        displayedScores = if (filter == "All") {
+            allScores
+        } else {
+            allScores.filter { it.period.equals(filter, ignoreCase = true) }
+        }
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -367,6 +399,25 @@ fun GuardianDashboardScreen() {
             result.fold(
                 onSuccess = { json ->
                     totalScore = json.optInt("totalScore", 0)
+
+                    val scoresJson = json.optJSONArray("scores") ?: JSONArray()
+                    val tempList = mutableListOf<StudentScoreItem>()
+
+                    for (i in 0 until scoresJson.length()) {
+                        val item = scoresJson.optJSONObject(i)
+                        if (item != null) {
+                            tempList.add(
+                                StudentScoreItem(
+                                    title = item.optString("title", "Untitled"),
+                                    score = item.optInt("score", 0),
+                                    period = item.optString("period", "Unknown")
+                                )
+                            )
+                        }
+                    }
+
+                    allScores = tempList
+                    displayedScores = tempList
                     isLoading = false
                 },
                 onFailure = { error ->
@@ -394,7 +445,7 @@ fun GuardianDashboardScreen() {
             color = Color(0xFF5A4A3B)
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (isLoading) {
             CircularProgressIndicator(color = Color(0xFFA874FF))
@@ -413,12 +464,87 @@ fun GuardianDashboardScreen() {
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Total Score: $totalScore",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFFA874FF)
-                    )
+                    LazyColumn {
+                        items(displayedScores) { item ->
+                            Text(
+                                text = "${item.title} - ${item.score} (${item.period})",
+                                fontSize = 18.sp,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedFilter == "All",
+                    onClick = { applyFilter("All") },
+                    label = { Text("All") }
+                )
+                FilterChip(
+                    selected = selectedFilter == "Daily",
+                    onClick = { applyFilter("Daily") },
+                    label = { Text("Daily") }
+                )
+                FilterChip(
+                    selected = selectedFilter == "Weekly",
+                    onClick = { applyFilter("Weekly") },
+                    label = { Text("Weekly") }
+                )
+                FilterChip(
+                    selected = selectedFilter == "Monthly",
+                    onClick = { applyFilter("Monthly") },
+                    label = { Text("Monthly") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (displayedScores.isEmpty()) {
+                Text(
+                    text = "No scores found for $selectedFilter",
+                    fontSize = 16.sp,
+                    color = Color.Gray
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(displayedScores) { item ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            shadowElevation = 4.dp
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = item.title,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF5A4A3B)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Score: ${item.score}",
+                                    fontSize = 16.sp,
+                                    color = Color(0xFFA874FF)
+                                )
+                                Text(
+                                    text = "Period: ${item.period}",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF7B6A58)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -490,7 +616,7 @@ fun SettingsScreen() {
                 fontWeight = FontWeight.Bold
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
