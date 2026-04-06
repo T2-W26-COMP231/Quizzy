@@ -47,7 +47,7 @@ public class GuardianController {
             }
 
             Optional<Student> studentOpt = studentRepository.findByUserId(userId);
-            Optional<User> userOpt = userRepository.findById(Long.valueOf(userId));
+            Optional<User> userOpt = userRepository.findById(userId);
 
             if (studentOpt.isEmpty() || userOpt.isEmpty()) {
                 return ResponseEntity.status(404)
@@ -80,7 +80,7 @@ public class GuardianController {
             }).toList();
 
             int filteredTotalScore = filteredSessions.stream()
-                    .mapToInt(session -> session.getFinalScore() != null ? session.getFinalScore() : 0)
+                    .mapToInt(session -> session.getFinalscore() != null ? session.getFinalscore() : 0)
                     .sum();
 
             return ResponseEntity.ok(Map.of(
