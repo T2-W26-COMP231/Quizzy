@@ -175,9 +175,9 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "Ready to test your knowledge?",
             fontSize = 20.sp,
@@ -288,7 +288,7 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(48.dp))
     }
 }
@@ -356,17 +356,35 @@ fun QuizSelectionScreen(
 fun GuardianDashboardScreen() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+
     var totalScore by remember { mutableIntStateOf(0) }
+    var studentName by remember { mutableStateOf("") }
+    var sessionsCount by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
 
+    var expanded by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf("All Time") }
+
+    val filterOptions = listOf("All Time", "Last 7 Days", "Last 30 Days", "Last 3 Months")
     val userId = sessionManager.getUserId()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(selectedFilter) {
+        isLoading = true
         try {
-            val result = NetworkClient.get("/guardian/$userId/student-score")
+            val filterParam = when (selectedFilter) {
+                "Last 7 Days" -> "7days"
+                "Last 30 Days" -> "30days"
+                "Last 3 Months" -> "3months"
+                else -> "all"
+            }
+
+            val result = NetworkClient.get("/guardian/$userId/student-score?filter=$filterParam")
+
             result.fold(
                 onSuccess = { json ->
                     totalScore = json.optInt("totalScore", 0)
+                    studentName = json.optString("studentName", "")
+                    sessionsCount = json.optInt("sessionsCount", 0)
                     isLoading = false
                 },
                 onFailure = { error ->
@@ -389,12 +407,43 @@ fun GuardianDashboardScreen() {
     ) {
         Text(
             text = "Guardian Dashboard",
-            fontSize = 32.sp,
+            fontSize = 30.sp,
             fontWeight = FontWeight.ExtraBold,
             color = Color(0xFF5A4A3B)
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(
+                    text = "Filter: $selectedFilter",
+                    fontSize = 16.sp,
+                    color = Color(0xFF5A4A3B)
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                filterOptions.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            selectedFilter = option
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(56.dp))
 
         if (isLoading) {
             CircularProgressIndicator(color = Color(0xFFA874FF))
@@ -405,14 +454,42 @@ fun GuardianDashboardScreen() {
                 color = Color.White,
                 shadowElevation = 8.dp
             ) {
-                Column(modifier = Modifier.padding(24.dp)) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
                     Text(
-                        text = "Student Progress:",
+                        text = "Student Progress",
                         fontSize = 18.sp,
-                        color = Color(0xFF7B6A58),
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF7B6A58)
                     )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Student Name: $studentName",
+                        fontSize = 16.sp,
+                        color = Color(0xFF5A4A3B)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Selected Filter: $selectedFilter",
+                        fontSize = 15.sp,
+                        color = Color(0xFF7B6A58)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Completed Sessions: $sessionsCount",
+                        fontSize = 15.sp,
+                        color = Color(0xFF7B6A58)
+                    )
+
                     Spacer(modifier = Modifier.height(16.dp))
+
                     Text(
                         text = "Total Score: $totalScore",
                         fontSize = 28.sp,
