@@ -3,6 +3,7 @@ package com.example.quizzy.network
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -12,6 +13,7 @@ import java.net.URL
 
 object NetworkClient {
     private const val BASE_URL = "http://10.0.2.2:3000/api"
+    private const val TAG = "NetworkClient"
 
     // Suspend version for Kotlin POST
     suspend fun post(endpoint: String, body: JSONObject): Result<JSONObject> = withContext(Dispatchers.IO) {
@@ -19,6 +21,7 @@ object NetworkClient {
             val result = executeRequest("POST", endpoint, body)
             Result.success(result)
         } catch (e: Exception) {
+            Log.e(TAG, "POST failed: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -29,6 +32,7 @@ object NetworkClient {
             val result = executeRequest("GET", endpoint, null)
             Result.success(result)
         } catch (e: Exception) {
+            Log.e(TAG, "GET failed: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -41,9 +45,12 @@ object NetworkClient {
 
     private fun executeRequest(method: String, endpoint: String, body: JSONObject?): JSONObject {
         val url = URL("$BASE_URL$endpoint")
+        Log.d(TAG, "Request URL: $url")
+
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = method
         connection.setRequestProperty("Content-Type", "application/json")
+        connection.setRequestProperty("Accept", "application/json")
         connection.connectTimeout = 10000
         connection.readTimeout = 10000
 
@@ -58,10 +65,29 @@ object NetworkClient {
         val responseCode = connection.responseCode
         val responseText = readResponse(connection)
 
+        Log.d(TAG, "Response code: $responseCode")
+        Log.d(TAG, "Response body: $responseText")
+
         if (responseCode in 200..299) {
-            return JSONObject(responseText)
+            return parseJsonResponse(responseText)
         } else {
             throw Exception("Error $responseCode: $responseText")
+        }
+    }
+
+    private fun parseJsonResponse(responseText: String): JSONObject {
+        val trimmed = responseText.trim()
+
+        if (trimmed.isEmpty()) {
+            return JSONObject()
+        }
+
+        return try {
+            JSONObject(trimmed)
+        } catch (e: Exception) {
+            val wrapper = JSONObject()
+            wrapper.put("data", JSONArray(trimmed))
+            wrapper
         }
     }
 
