@@ -1,56 +1,23 @@
 package com.example.quizzy
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,13 +32,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.quizzy.network.NetworkClient
-
-data class GuardianQuizSession(
-    val id: Int,
-    val score: Int,
-    val completedAt: String,
-    val totalQuestions: Int
-)
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
+import org.json.JSONArray
 
 class MainActivity : ComponentActivity() {
 
@@ -88,6 +54,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
+            // Observe intent changes to handle "start_screen" correctly when re-launching the activity
             var currentScreen by remember { mutableStateOf("Home") }
 
             LaunchedEffect(intent) {
@@ -153,7 +120,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent)
+        setIntent(intent) // Important to update the intent so LaunchedEffect(intent) triggers
     }
 }
 
@@ -168,16 +135,16 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
     LaunchedEffect(Unit) {
         try {
             val result = NetworkClient.get("/score/user/$userId")
-
-            if (result.isSuccess) {
-                val json = result.getOrNull()
-                totalScore = json?.optInt("totalScore", 0) ?: 0
-            } else {
-                totalScore = 0
-            }
-        } catch (_: Exception) {
-            totalScore = 0
-        } finally {
+            result.fold(
+                onSuccess = { json ->
+                    totalScore = json.optInt("totalScore", 0)
+                    isLoading = false
+                },
+                onFailure = {
+                    isLoading = false
+                }
+            )
+        } catch (e: Exception) {
             isLoading = false
         }
     }
@@ -275,7 +242,6 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
                             color = Color.White.copy(alpha = 0.85f)
                         )
                     }
-
                     Box(
                         modifier = Modifier
                             .size(64.dp)
@@ -398,63 +364,69 @@ fun QuizSelectionScreen(
     }
 }
 
+data class StudentScoreItem(
+    val title: String,
+    val score: Int,
+    val period: String
+)
+
 @Composable
 fun GuardianDashboardScreen() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
 
     var totalScore by remember { mutableIntStateOf(0) }
-    var sessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf("") }
+
+    var allScores by remember { mutableStateOf(listOf<StudentScoreItem>()) }
+    var displayedScores by remember { mutableStateOf(listOf<StudentScoreItem>()) }
+    var selectedFilter by remember { mutableStateOf("All") }
 
     val userId = sessionManager.getUserId()
 
+    fun applyFilter(filter: String) {
+        selectedFilter = filter
+        displayedScores = if (filter == "All") {
+            allScores
+        } else {
+            allScores.filter { it.period.equals(filter, ignoreCase = true) }
+        }
+    }
+
     LaunchedEffect(Unit) {
         try {
-            val scoreResult = NetworkClient.get("/guardian/$userId/student-score")
+            val result = NetworkClient.get("/guardian/$userId/student-score")
+            result.fold(
+                onSuccess = { json ->
+                    totalScore = json.optInt("totalScore", 0)
 
-            if (scoreResult.isSuccess) {
-                val scoreJson = scoreResult.getOrNull()
-                totalScore = scoreJson?.optInt("totalScore", 0) ?: 0
-            }
+                    val scoresJson = json.optJSONArray("scores") ?: JSONArray()
+                    val tempList = mutableListOf<StudentScoreItem>()
 
-            val sessionsResult = NetworkClient.get("/guardian/$userId/latest-sessions")
-
-            if (sessionsResult.isSuccess) {
-                val json = sessionsResult.getOrNull()
-                val loadedSessions = mutableListOf<GuardianQuizSession>()
-
-                val sessionsArray = if (json != null && json.has("data")) {
-                    json.getJSONArray("data")
-                } else {
-                    null
-                }
-
-                if (sessionsArray != null) {
-                    for (i in 0 until sessionsArray.length()) {
-                        val item = sessionsArray.getJSONObject(i)
-                        loadedSessions.add(
-                            GuardianQuizSession(
-                                id = item.optInt("id", 0),
-                                score = item.optInt("finalScore", 0),
-                                completedAt = item.optString("completion", "Unknown"),
-                                totalQuestions = 5
+                    for (i in 0 until scoresJson.length()) {
+                        val item = scoresJson.optJSONObject(i)
+                        if (item != null) {
+                            tempList.add(
+                                StudentScoreItem(
+                                    title = item.optString("title", "Untitled"),
+                                    score = item.optInt("score", 0),
+                                    period = item.optString("period", "Unknown")
+                                )
                             )
-                        )
+                        }
                     }
-                }
 
-                sessions = loadedSessions
-            } else {
-                val error = sessionsResult.exceptionOrNull()
-                Log.e("GUARDIAN", "Sessions fetch failed: ${error?.message}", error)
-                errorMessage = "Failed to load latest sessions"
-            }
+                    allScores = tempList
+                    displayedScores = tempList
+                    isLoading = false
+                },
+                onFailure = { error ->
+                    Log.e("GUARDIAN", "Fetch failed: ${error.message}")
+                    isLoading = false
+                }
+            )
         } catch (e: Exception) {
-            Log.e("GUARDIAN", "Error: ${e.message}", e)
-            errorMessage = "Something went wrong"
-        } finally {
+            Log.e("GUARDIAN", "Error: ${e.message}")
             isLoading = false
         }
     }
@@ -463,7 +435,8 @@ fun GuardianDashboardScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFFFBF2))
-            .padding(24.dp)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "Guardian Dashboard",
@@ -475,117 +448,101 @@ fun GuardianDashboardScreen() {
         Spacer(modifier = Modifier.height(24.dp))
 
         if (isLoading) {
-            Box(
+            CircularProgressIndicator(color = Color(0xFFA874FF))
+        } else {
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                shadowElevation = 8.dp
             ) {
-                CircularProgressIndicator(color = Color(0xFFA874FF))
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        text = "Student Progress:",
+                        fontSize = 18.sp,
+                        color = Color(0xFF7B6A58),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    LazyColumn {
+                        items(displayedScores) { item ->
+                            Text(
+                                text = "${item.title} - ${item.score} (${item.period})",
+                                fontSize = 18.sp,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
             }
-            return@Column
-        }
+//jj
+            Spacer(modifier = Modifier.height(24.dp))
 
-        if (errorMessage.isNotBlank()) {
-            Text(
-                text = errorMessage,
-                color = Color.Red,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            shadowElevation = 8.dp
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text(
-                    text = "Student Progress:",
-                    fontSize = 18.sp,
-                    color = Color(0xFF7B6A58),
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Total Score: $totalScore",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFFA874FF)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // space reserved for teammate's future filters
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "Latest 15 Quiz Sessions",
-            fontSize = 18.sp,
-            color = Color(0xFF7B6A58),
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (sessions.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                FilterChip(
+                    selected = selectedFilter == "All",
+                    onClick = { applyFilter("All") },
+                    label = { Text("All") }
+                )
+                FilterChip(
+                    selected = selectedFilter == "Daily",
+                    onClick = { applyFilter("Daily") },
+                    label = { Text("Daily") }
+                )
+                FilterChip(
+                    selected = selectedFilter == "Weekly",
+                    onClick = { applyFilter("Weekly") },
+                    label = { Text("Weekly") }
+                )
+                FilterChip(
+                    selected = selectedFilter == "Monthly",
+                    onClick = { applyFilter("Monthly") },
+                    label = { Text("Monthly") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (displayedScores.isEmpty()) {
                 Text(
-                    text = "No quiz sessions found.",
+                    text = "No scores found for $selectedFilter",
                     fontSize = 16.sp,
                     color = Color.Gray
                 )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(sessions) { session ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        shadowElevation = 4.dp
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Session #${session.id}",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF5A4A3B)
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = "Score: ${session.score}",
-                                fontSize = 16.sp,
-                                color = Color(0xFFA874FF),
-                                fontWeight = FontWeight.SemiBold
-                            )
-
-                            Text(
-                                text = "Total Questions: ${session.totalQuestions}",
-                                fontSize = 14.sp,
-                                color = Color(0xFF7B6A58)
-                            )
-
-                            Text(
-                                text = "Completed At: ${session.completedAt}",
-                                fontSize = 14.sp,
-                                color = Color(0xFF7B6A58)
-                            )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(displayedScores) { item ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            shadowElevation = 4.dp
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = item.title,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF5A4A3B)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Score: ${item.score}",
+                                    fontSize = 16.sp,
+                                    color = Color(0xFFA874FF)
+                                )
+                                Text(
+                                    text = "Period: ${item.period}",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF7B6A58)
+                                )
+                            }
                         }
                     }
                 }
@@ -711,7 +668,7 @@ fun FancyNavigationBar(
             NavBarItem(
                 icon = Icons.Default.Home,
                 label = "Home",
-                isSelected = currentScreen == "Home" || currentScreen == "Dashboard" || currentScreen == "QuizSelection",
+                isSelected = currentScreen == "Home" || currentScreen == "Dashboard",
                 onClick = { onTabSelected("Home") }
             )
             NavBarItem(
