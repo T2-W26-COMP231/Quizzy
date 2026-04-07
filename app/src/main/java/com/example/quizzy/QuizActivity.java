@@ -149,12 +149,12 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     private void openResultsScreen() {
-        // Logic of badges that are unlocked based on the user's progress.
         BadgeManager.checkAndUnlockBadges(this, score, questionList.size(), gradeLevel);
 
         Intent intent = new Intent(QuizActivity.this, ResultActivity.class);
         intent.putExtra("score", score);
         intent.putExtra("totalQuestions", questionList.size());
+        intent.putExtra("sessionId", QuizRepository.currentSessionId);
         startActivity(intent);
         finish();
     }

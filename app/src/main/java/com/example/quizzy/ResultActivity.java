@@ -94,7 +94,9 @@ public class ResultActivity extends AppCompatActivity {
 
     private void syncScoreAndFetchNewBadges(int correctAnswers, int totalQuestions) {
         long userId = sessionManager.getUserId();
-        long sessionId = QuizRepository.currentSessionId;
+        long sessionId = getIntent().getLongExtra("sessionId", -1L);
+
+        Log.d("SESSION_DEBUG", "Session ID from intent: " + sessionId);
 
         if (userId == -1L) {
             showError("User not logged in.");
@@ -109,12 +111,12 @@ public class ResultActivity extends AppCompatActivity {
 
             if (sessionId != -1L) {
                 body.put("session_id", sessionId);
+            } else {
+                Log.e("SESSION_DEBUG", "Invalid session ID, score will not be tied to a quiz session");
             }
 
             new Thread(() -> {
                 try {
-                    // Sync with backend and get response containing newly earned badges
-                    // The backend returns 'newBadges' field
                     JSONObject response = NetworkClient.postSync("/score/update", body);
                     Log.d("SYNC", "Score synced successfully. Response: " + response.toString());
 
@@ -123,7 +125,6 @@ public class ResultActivity extends AppCompatActivity {
                         JSONArray badgesArray = response.getJSONArray("newBadges");
                         for (int i = 0; i < badgesArray.length(); i++) {
                             JSONObject badgeObj = badgesArray.getJSONObject(i);
-                            // Backend fields: badgeId, badgeName, description
                             newlyEarned.add(new Badges(
                                     badgeObj.getLong("badgeId"),
                                     badgeObj.getString("badgeName"),
@@ -143,12 +144,12 @@ public class ResultActivity extends AppCompatActivity {
                         }
                     });
                 } catch (Exception e) {
-                    Log.e("SYNC", "Error: " + e.getMessage());
+                    Log.e("SYNC", "Error: " + e.getMessage(), e);
                     runOnUiThread(() -> showError("Failed to sync: " + e.getMessage()));
                 }
             }).start();
         } catch (JSONException e) {
-            Log.e("SYNC", "JSON error: " + e.getMessage());
+            Log.e("SYNC", "JSON error: " + e.getMessage(), e);
         }
     }
 
