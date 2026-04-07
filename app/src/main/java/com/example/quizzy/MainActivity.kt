@@ -3,6 +3,7 @@ package com.example.quizzy
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
@@ -39,6 +41,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -65,6 +69,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.quizzy.network.NetworkClient
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 data class GuardianQuizSession(
     val id: Int,
@@ -398,17 +407,100 @@ fun QuizSelectionScreen(
     }
 }
 
+private fun parseSessionDate(dateString: String): Date? {
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "MMM d, yyyy - h:mm a"
+    )
+
+    for (pattern in patterns) {
+        try {
+            val formatter = SimpleDateFormat(pattern, Locale.getDefault())
+            if (pattern.contains("'Z'") || pattern.contains("XXX")) {
+                formatter.timeZone = TimeZone.getTimeZone("UTC")
+            }
+            return formatter.parse(dateString)
+        } catch (_: Exception) {
+        }
+    }
+
+    return null
+}
+
+private fun isInCurrentDay(date: Date): Boolean {
+    val now = Calendar.getInstance()
+    val sessionCal = Calendar.getInstance().apply { time = date }
+
+    return now.get(Calendar.YEAR) == sessionCal.get(Calendar.YEAR) &&
+            now.get(Calendar.DAY_OF_YEAR) == sessionCal.get(Calendar.DAY_OF_YEAR)
+}
+
+private fun isInCurrentWeek(date: Date): Boolean {
+    val now = Calendar.getInstance()
+    val sessionCal = Calendar.getInstance().apply { time = date }
+
+    return now.get(Calendar.YEAR) == sessionCal.get(Calendar.YEAR) &&
+            now.get(Calendar.WEEK_OF_YEAR) == sessionCal.get(Calendar.WEEK_OF_YEAR)
+}
+
+private fun isInCurrentMonth(date: Date): Boolean {
+    val now = Calendar.getInstance()
+    val sessionCal = Calendar.getInstance().apply { time = date }
+
+    return now.get(Calendar.YEAR) == sessionCal.get(Calendar.YEAR) &&
+            now.get(Calendar.MONTH) == sessionCal.get(Calendar.MONTH)
+}
+
+private fun applySessionFilter(
+    sessions: List<GuardianQuizSession>,
+    filter: String
+): List<GuardianQuizSession> {
+    return when (filter) {
+        "Current Day" -> sessions.filter { session ->
+            val parsedDate = parseSessionDate(session.completedAt)
+            parsedDate != null && isInCurrentDay(parsedDate)
+        }
+
+        "Current Week" -> sessions.filter { session ->
+            val parsedDate = parseSessionDate(session.completedAt)
+            parsedDate != null && isInCurrentWeek(parsedDate)
+        }
+
+        "Current Month" -> sessions.filter { session ->
+            val parsedDate = parseSessionDate(session.completedAt)
+            parsedDate != null && isInCurrentMonth(parsedDate)
+        }
+
+        else -> sessions
+    }
+}
+
 @Composable
 fun GuardianDashboardScreen() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
 
     var totalScore by remember { mutableIntStateOf(0) }
-    var sessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
+    var allSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
+    var displayedSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
+    var selectedFilter by remember { mutableStateOf("All") }
+    var isDropdownExpanded by remember { mutableStateOf(false) }
+
+    // Task #157 states
+    var selectedDisplay by remember { mutableStateOf("Latest Sessions") }
+    var isDisplayDropdownExpanded by remember { mutableStateOf(false) }
+
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
 
     val userId = sessionManager.getUserId()
+    val filterOptions = listOf("All", "Current Day", "Current Week", "Current Month")
+    val displayOptions = listOf("Latest Sessions", "Charts")
 
     LaunchedEffect(Unit) {
         try {
@@ -445,7 +537,8 @@ fun GuardianDashboardScreen() {
                     }
                 }
 
-                sessions = loadedSessions
+                allSessions = loadedSessions
+                displayedSessions = applySessionFilter(loadedSessions, selectedFilter)
             } else {
                 val error = sessionsResult.exceptionOrNull()
                 Log.e("GUARDIAN", "Sessions fetch failed: ${error?.message}", error)
@@ -521,8 +614,97 @@ fun GuardianDashboardScreen() {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // space reserved for teammate's future filters
-        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box {
+                Button(
+                    onClick = { isDropdownExpanded = true },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color(0xFF5A4A3B)
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Text(
+                        text = "Filter: $selectedFilter",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "Filter dropdown"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = isDropdownExpanded,
+                    onDismissRequest = { isDropdownExpanded = false }
+                ) {
+                    filterOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                selectedFilter = option
+                                displayedSessions = applySessionFilter(allSessions, option)
+                                isDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Box {
+                Button(
+                    onClick = { isDisplayDropdownExpanded = true },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color(0xFF5A4A3B)
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Text(
+                        text = "Display: $selectedDisplay",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "Display dropdown"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = isDisplayDropdownExpanded,
+                    onDismissRequest = { isDisplayDropdownExpanded = false }
+                ) {
+                    displayOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                selectedDisplay = option
+                                isDisplayDropdownExpanded = false
+
+                                if (option == "Charts") {
+                                    Toast.makeText(
+                                        context,
+                                        "Charts selected",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
+                                    // Task #158 can add actual chart navigation here later
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "Latest 15 Quiz Sessions",
@@ -533,7 +715,7 @@ fun GuardianDashboardScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (sessions.isEmpty()) {
+        if (displayedSessions.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -541,7 +723,11 @@ fun GuardianDashboardScreen() {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No quiz sessions found.",
+                    text = if (allSessions.isEmpty()) {
+                        "No quiz sessions found."
+                    } else {
+                        "No quiz sessions found for $selectedFilter."
+                    },
                     fontSize = 16.sp,
                     color = Color.Gray
                 )
@@ -551,7 +737,7 @@ fun GuardianDashboardScreen() {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(sessions) { session ->
+                items(displayedSessions) { session ->
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
