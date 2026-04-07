@@ -3,7 +3,6 @@ package com.example.quizzy
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,7 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -77,6 +76,7 @@ import java.util.TimeZone
 
 data class GuardianQuizSession(
     val id: Int,
+    val displaySessionNumber: Int = 0,
     val score: Int,
     val completedAt: String,
     val totalQuestions: Int
@@ -432,6 +432,12 @@ private fun parseSessionDate(dateString: String): Date? {
     return null
 }
 
+private fun formatSessionDate(dateString: String): String {
+    val date = parseSessionDate(dateString) ?: return dateString
+    val formatter = SimpleDateFormat("d - MMM - yyyy", Locale.getDefault())
+    return formatter.format(date)
+}
+
 private fun isInCurrentDay(date: Date): Boolean {
     val now = Calendar.getInstance()
     val sessionCal = Calendar.getInstance().apply { time = date }
@@ -489,12 +495,9 @@ fun GuardianDashboardScreen() {
     var allSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
     var displayedSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
     var selectedFilter by remember { mutableStateOf("All") }
-    var isDropdownExpanded by remember { mutableStateOf(false) }
-
-    // Task #157 states
     var selectedDisplay by remember { mutableStateOf("Latest Sessions") }
+    var isFilterDropdownExpanded by remember { mutableStateOf(false) }
     var isDisplayDropdownExpanded by remember { mutableStateOf(false) }
-
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
 
@@ -504,7 +507,7 @@ fun GuardianDashboardScreen() {
 
     LaunchedEffect(Unit) {
         try {
-            val scoreResult = NetworkClient.get("/guardian/$userId/student-score")
+            val scoreResult = NetworkClient.get("/score/user/$userId")
 
             if (scoreResult.isSuccess) {
                 val scoreJson = scoreResult.getOrNull()
@@ -515,6 +518,8 @@ fun GuardianDashboardScreen() {
 
             if (sessionsResult.isSuccess) {
                 val json = sessionsResult.getOrNull()
+                Log.d("GUARDIAN_RAW", json.toString())
+
                 val loadedSessions = mutableListOf<GuardianQuizSession>()
 
                 val sessionsArray = if (json != null && json.has("data")) {
@@ -526,10 +531,12 @@ fun GuardianDashboardScreen() {
                 if (sessionsArray != null) {
                     for (i in 0 until sessionsArray.length()) {
                         val item = sessionsArray.getJSONObject(i)
+
                         loadedSessions.add(
                             GuardianQuizSession(
                                 id = item.optInt("id", 0),
-                                score = item.optInt("finalScore", 0),
+                                displaySessionNumber = item.optInt("displaySessionNumber", i + 1),
+                                score = item.optInt("finalscore", 0),
                                 completedAt = item.optString("completion", "Unknown"),
                                 totalQuestions = 5
                             )
@@ -618,9 +625,10 @@ fun GuardianDashboardScreen() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box {
+            Box(modifier = Modifier.weight(1f)) {
                 Button(
-                    onClick = { isDropdownExpanded = true },
+                    onClick = { isFilterDropdownExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White,
@@ -640,8 +648,8 @@ fun GuardianDashboardScreen() {
                 }
 
                 DropdownMenu(
-                    expanded = isDropdownExpanded,
-                    onDismissRequest = { isDropdownExpanded = false }
+                    expanded = isFilterDropdownExpanded,
+                    onDismissRequest = { isFilterDropdownExpanded = false }
                 ) {
                     filterOptions.forEach { option ->
                         DropdownMenuItem(
@@ -649,16 +657,17 @@ fun GuardianDashboardScreen() {
                             onClick = {
                                 selectedFilter = option
                                 displayedSessions = applySessionFilter(allSessions, option)
-                                isDropdownExpanded = false
+                                isFilterDropdownExpanded = false
                             }
                         )
                     }
                 }
             }
 
-            Box {
+            Box(modifier = Modifier.weight(1f)) {
                 Button(
                     onClick = { isDisplayDropdownExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White,
@@ -687,16 +696,6 @@ fun GuardianDashboardScreen() {
                             onClick = {
                                 selectedDisplay = option
                                 isDisplayDropdownExpanded = false
-
-                                if (option == "Charts") {
-                                    Toast.makeText(
-                                        context,
-                                        "Charts selected",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-
-                                    // Task #158 can add actual chart navigation here later
-                                }
                             }
                         )
                     }
@@ -706,75 +705,92 @@ fun GuardianDashboardScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Latest 15 Quiz Sessions",
-            fontSize = 18.sp,
-            color = Color(0xFF7B6A58),
-            fontWeight = FontWeight.Medium
-        )
+        if (selectedDisplay == "Latest Sessions") {
+            Text(
+                text = "Latest 15 Quiz Sessions",
+                fontSize = 18.sp,
+                color = Color(0xFF7B6A58),
+                fontWeight = FontWeight.Medium
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        if (displayedSessions.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (allSessions.isEmpty()) {
-                        "No quiz sessions found."
-                    } else {
-                        "No quiz sessions found for $selectedFilter."
-                    },
-                    fontSize = 16.sp,
-                    color = Color.Gray
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(displayedSessions) { session ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        shadowElevation = 4.dp
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Session #${session.id}",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF5A4A3B)
-                            )
+            if (displayedSessions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (allSessions.isEmpty()) {
+                            "No quiz sessions found."
+                        } else {
+                            "No quiz sessions found for $selectedFilter."
+                        },
+                        fontSize = 16.sp,
+                        color = Color.Gray
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    itemsIndexed(displayedSessions) { index, session ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color.White,
+                            shadowElevation = 4.dp
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                val sessionNumber =
+                                    if (session.displaySessionNumber > 0) session.displaySessionNumber else index + 1
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Session $sessionNumber",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF5A4A3B)
+                                )
 
-                            Text(
-                                text = "Score: ${session.score}",
-                                fontSize = 16.sp,
-                                color = Color(0xFFA874FF),
-                                fontWeight = FontWeight.SemiBold
-                            )
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            Text(
-                                text = "Total Questions: ${session.totalQuestions}",
-                                fontSize = 14.sp,
-                                color = Color(0xFF7B6A58)
-                            )
+                                Text(
+                                    text = "Score: ${session.score}",
+                                    fontSize = 16.sp,
+                                    color = Color(0xFFA874FF),
+                                    fontWeight = FontWeight.SemiBold
+                                )
 
-                            Text(
-                                text = "Completed At: ${session.completedAt}",
-                                fontSize = 14.sp,
-                                color = Color(0xFF7B6A58)
-                            )
+                                Text(
+                                    text = "Total Questions: ${session.totalQuestions}",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF7B6A58)
+                                )
+
+                                Text(
+                                    text = "Completed: ${formatSessionDate(session.completedAt)}",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF7B6A58)
+                                )
+                            }
                         }
                     }
                 }
+            }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Charts view coming soon.",
+                    fontSize = 18.sp,
+                    color = Color(0xFF7B6A58),
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
