@@ -4,7 +4,10 @@ import com.quizzy.backend.model.QuizSession;
 import com.quizzy.backend.repository.QuizSessionRepository;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/guardian")
@@ -17,10 +20,30 @@ public class GuardianController {
         this.quizSessionRepository = quizSessionRepository;
     }
 
-    // 🔥 THIS is the endpoint your Android will call
     @GetMapping("/{userId}/latest-sessions")
-    public List<QuizSession> getLatestSessions(@PathVariable Integer userId) {
-        return quizSessionRepository
-                .findTop15ByUserIdAndCompletionIsNotNullOrderByCompletionDesc(userId);
+    public List<Map<String, Object>> getLatestSessions(@PathVariable Integer userId) {
+        List<QuizSession> allUserSessions =
+                quizSessionRepository.findByUserIdAndCompletionIsNotNullOrderByCompletionDesc(userId);
+
+        List<Map<String, Object>> response = new ArrayList<>();
+
+        int limit = Math.min(15, allUserSessions.size());
+
+        for (int i = 0; i < limit; i++) {
+            QuizSession session = allUserSessions.get(i);
+
+            Map<String, Object> sessionMap = new HashMap<>();
+            sessionMap.put("displaySessionNumber", i + 1); // 1 = most recent, 2 = next, etc.
+            sessionMap.put("id", session.getId());
+            sessionMap.put("userId", session.getUserId());
+            sessionMap.put("questionsJson", session.getQuestionsJson());
+            sessionMap.put("createdAt", session.getCreatedAt());
+            sessionMap.put("completion", session.getCompletion());
+            sessionMap.put("finalscore", session.getFinalscore());
+
+            response.add(sessionMap);
+        }
+
+        return response;
     }
 }
