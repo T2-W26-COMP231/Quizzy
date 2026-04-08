@@ -559,229 +559,227 @@ fun GuardianDashboardScreen() {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFFFFBF2))
-            .padding(24.dp)
-    ) {
-        Text(
-            text = "Guardian Dashboard",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF5A4A3B)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color(0xFFA874FF))
-            }
-            return@Column
-        }
-
-        if (errorMessage.isNotBlank()) {
-            Text(
-                text = errorMessage,
-                color = Color.Red,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            shadowElevation = 8.dp
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFFBF2))) {
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+            Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp)) {
                 Text(
-                    text = "Student Progress:",
-                    fontSize = 18.sp,
-                    color = Color(0xFF7B6A58),
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Total Score: $totalScore",
-                    fontSize = 28.sp,
+                    text = "Guardian Dashboard",
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFFA874FF)
+                    color = Color(0xFF5A4A3B)
                 )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                Button(
-                    onClick = { isFilterDropdownExpanded = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF5A4A3B)
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                ) {
-                    Text(
-                        text = "Filter: $selectedFilter",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Filter dropdown"
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = isFilterDropdownExpanded,
-                    onDismissRequest = { isFilterDropdownExpanded = false }
-                ) {
-                    filterOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                selectedFilter = option
-                                displayedSessions = applySessionFilter(allSessions, option)
-                                isFilterDropdownExpanded = false
-                            }
-                        )
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFFA874FF))
                     }
-                }
-            }
-
-            Box(modifier = Modifier.weight(1f)) {
-                Button(
-                    onClick = { isDisplayDropdownExpanded = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF5A4A3B)
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                ) {
+                } else if (errorMessage.isNotBlank()) {
                     Text(
-                        text = "Display: $selectedDisplay",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Display dropdown"
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = isDisplayDropdownExpanded,
-                    onDismissRequest = { isDisplayDropdownExpanded = false }
-                ) {
-                    displayOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                selectedDisplay = option
-                                isDisplayDropdownExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (selectedDisplay == "Latest Sessions") {
-            Text(
-                text = "Latest Quiz Sessions",
-                fontSize = 18.sp,
-                color = Color(0xFF7B6A58),
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (displayedSessions.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (allSessions.isEmpty()) {
-                            "No quiz sessions found."
-                        } else {
-                            "No quiz sessions found for $selectedFilter."
-                        },
+                        text = errorMessage,
+                        color = Color.Red,
                         fontSize = 16.sp,
-                        color = Color.Gray
+                        fontWeight = FontWeight.Medium
                     )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    itemsIndexed(displayedSessions) { index, session ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color.White,
-                            shadowElevation = 4.dp
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                val sessionNumber =
-                                    if (session.displaySessionNumber > 0) session.displaySessionNumber else index + 1
+                    Spacer(modifier = Modifier.height(12.dp))
+                } else {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.White,
+                        shadowElevation = 8.dp
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
+                            Text(
+                                text = "Student Progress:",
+                                fontSize = 18.sp,
+                                color = Color(0xFF7B6A58),
+                                fontWeight = FontWeight.Medium
+                            )
 
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = "Total Score: $totalScore",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFA874FF)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            Button(
+                                onClick = { isFilterDropdownExpanded = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color(0xFF5A4A3B)
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            ) {
                                 Text(
-                                    text = "Session $sessionNumber",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF5A4A3B)
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = "Score: ${session.score}",
-                                    fontSize = 16.sp,
-                                    color = Color(0xFFA874FF),
+                                    text = "Filter: $selectedFilter",
                                     fontWeight = FontWeight.SemiBold
                                 )
-
-                                Text(
-                                    text = "Total Questions: ${session.totalQuestions}",
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF7B6A58)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Filter dropdown"
                                 )
+                            }
 
+                            DropdownMenu(
+                                expanded = isFilterDropdownExpanded,
+                                onDismissRequest = { isFilterDropdownExpanded = false }
+                            ) {
+                                filterOptions.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option) },
+                                        onClick = {
+                                            selectedFilter = option
+                                            displayedSessions = applySessionFilter(allSessions, option)
+                                            isFilterDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Box(modifier = Modifier.weight(1f)) {
+                            Button(
+                                onClick = { isDisplayDropdownExpanded = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color(0xFF5A4A3B)
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            ) {
                                 Text(
-                                    text = "Completed: ${formatSessionDate(session.completedAt)}",
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF7B6A58)
+                                    text = "Display: $selectedDisplay",
+                                    fontWeight = FontWeight.SemiBold
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Display dropdown"
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = isDisplayDropdownExpanded,
+                                onDismissRequest = { isDisplayDropdownExpanded = false }
+                            ) {
+                                displayOptions.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option) },
+                                        onClick = {
+                                            selectedDisplay = option
+                                            isDisplayDropdownExpanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (selectedDisplay == "Latest Sessions") {
+                        Text(
+                            text = "Latest Quiz Sessions",
+                            fontSize = 18.sp,
+                            color = Color(0xFF7B6A58),
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (displayedSessions.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (allSessions.isEmpty()) {
+                                        "No quiz sessions found."
+                                    } else {
+                                        "No quiz sessions found for $selectedFilter."
+                                    },
+                                    fontSize = 16.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                itemsIndexed(displayedSessions) { index, session ->
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = Color.White,
+                                        shadowElevation = 4.dp
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            val sessionNumber =
+                                                if (session.displaySessionNumber > 0) session.displaySessionNumber else index + 1
+
+                                            Text(
+                                                text = "Session $sessionNumber",
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF5A4A3B)
+                                            )
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            Text(
+                                                text = "Score: ${session.score}",
+                                                fontSize = 16.sp,
+                                                color = Color(0xFFA874FF),
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+
+                                            Text(
+                                                text = "Total Questions: ${session.totalQuestions}",
+                                                fontSize = 14.sp,
+                                                color = Color(0xFF7B6A58)
+                                            )
+
+                                            Text(
+                                                text = "Completed: ${formatSessionDate(session.completedAt)}",
+                                                fontSize = 14.sp,
+                                                color = Color(0xFF7B6A58)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        GuardianChartsView()
+                    }
                 }
             }
-        } else {
-            GuardianChartsView()
         }
     }
 }
@@ -791,37 +789,12 @@ fun GuardianChartsView() {
     var selectedChart by remember { mutableStateOf("Pie Chart") }
     val chartTypes = listOf("Pie Chart", "Bar Chart", "Line Chart")
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            chartTypes.forEach { type ->
-                val isSelected = selectedChart == type
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { selectedChart = type },
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isSelected) Color(0xFFA874FF) else Color.White,
-                    shadowElevation = 2.dp
-                ) {
-                    Text(
-                        text = type.split(" ")[0],
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        textAlign = TextAlign.Center,
-                        color = if (isSelected) Color.White else Color(0xFF5A4A3B),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Content area centered in the available space
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 80.dp), // Extra padding to keep text centered above the nav bar
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -831,6 +804,46 @@ fun GuardianChartsView() {
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center
             )
+        }
+
+        // Navigation Bar anchored at the bottom
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, bottom = 12.dp), // Positioned just above the main navbar
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            shadowElevation = 12.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                chartTypes.forEach { type ->
+                    val isSelected = selectedChart == type
+                    val label = type.split(" ")[0]
+                    
+                    Column(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isSelected) Color(0xFFA874FF).copy(alpha = 0.1f) else Color.Transparent)
+                            .clickable { selectedChart = type }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (isSelected) Color(0xFFA874FF) else Color(0xFFBCB1A4),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
         }
     }
 }
