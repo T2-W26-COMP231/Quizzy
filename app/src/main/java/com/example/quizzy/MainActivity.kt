@@ -707,7 +707,7 @@ fun GuardianDashboardScreen() {
 
         if (selectedDisplay == "Latest Sessions") {
             Text(
-                text = "Latest 15 Quiz Sessions",
+                text = "Latest Quiz Sessions",
                 fontSize = 18.sp,
                 color = Color(0xFF7B6A58),
                 fontWeight = FontWeight.Medium
@@ -781,17 +781,56 @@ fun GuardianDashboardScreen() {
                 }
             }
         } else {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Charts view coming soon.",
-                    fontSize = 18.sp,
-                    color = Color(0xFF7B6A58),
-                    fontWeight = FontWeight.Medium
-                )
+            GuardianChartsView()
+        }
+    }
+}
+
+@Composable
+fun GuardianChartsView() {
+    var selectedChart by remember { mutableStateOf("Pie Chart") }
+    val chartTypes = listOf("Pie Chart", "Bar Chart", "Line Chart")
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            chartTypes.forEach { type ->
+                val isSelected = selectedChart == type
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedChart = type },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected) Color(0xFFA874FF) else Color.White,
+                    shadowElevation = 2.dp
+                ) {
+                    Text(
+                        text = type.split(" ")[0],
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        textAlign = TextAlign.Center,
+                        color = if (isSelected) Color.White else Color(0xFF5A4A3B),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "$selectedChart screen coming soon!",
+                fontSize = 18.sp,
+                color = Color(0xFF7B6A58),
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
