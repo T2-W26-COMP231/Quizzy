@@ -74,6 +74,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.quizzy.network.NetworkClient
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.charts.PieChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
@@ -81,6 +82,9 @@ import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.data.PieData
+import com.github.mikephil.charting.data.PieDataSet
+import com.github.mikephil.charting.data.PieEntry
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -829,9 +833,15 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                 selectedChart == "Line Chart" -> {
                     GuardianLineChartView(sessions = allSessions)
                 }
+
                 selectedChart == "Bar Chart" -> {
                     GuardianBarChartView(sessions = allSessions)
                 }
+
+                selectedChart == "Pie Chart" -> {
+                    GuardianPieChartView(sessions = allSessions)
+                }
+
                 else -> {
                     Text(
                         text = "$selectedChart screen coming soon!",
@@ -965,6 +975,62 @@ fun GuardianBarChartView(sessions: List<GuardianQuizSession>) {
 
             chart.data = BarData(dataSet).apply {
                 barWidth = 0.6f
+            }
+            chart.invalidate()
+        }
+    )
+}
+
+@Composable
+fun GuardianPieChartView(sessions: List<GuardianQuizSession>) {
+    val totalCorrect = sessions.sumOf { it.score }
+    val totalQuestions = sessions.sumOf { it.totalQuestions }
+    val totalIncorrect = totalQuestions - totalCorrect
+
+    val entries = listOf(
+        PieEntry(totalCorrect.toFloat(), "Correct"),
+        PieEntry(totalIncorrect.toFloat(), "Incorrect")
+    )
+
+    val colors = listOf(
+        Color.Green.toArgb(),
+        Color.Red.toArgb()
+    )
+
+    val chartTextColor = Color(0xFF5A4A3B).toArgb()
+
+    AndroidView(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(320.dp),
+        factory = { context ->
+            PieChart(context).apply {
+                layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                description.isEnabled = false
+                isDrawHoleEnabled = true
+                setHoleColor(android.graphics.Color.TRANSPARENT)
+                setTransparentCircleAlpha(0)
+                setDrawEntryLabels(true)
+                setEntryLabelColor(chartTextColor)
+                setEntryLabelTextSize(12f)
+                
+                legend.isEnabled = true
+                legend.textColor = chartTextColor
+                legend.horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.CENTER
+            }
+        },
+        update = { chart ->
+            val dataSet = PieDataSet(entries, "").apply {
+                this.colors = colors
+                valueTextColor = android.graphics.Color.WHITE
+                valueTextSize = 14f
+                valueTypeface = Typeface.DEFAULT_BOLD
+                sliceSpace = 3f
+            }
+            chart.data = PieData(dataSet).apply {
+                setValueFormatter(object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String = value.toInt().toString()
+                })
             }
             chart.invalidate()
         }
