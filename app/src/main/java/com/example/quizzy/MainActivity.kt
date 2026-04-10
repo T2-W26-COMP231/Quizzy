@@ -830,7 +830,6 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                         textAlign = TextAlign.Center
                     )
                 }
-
                 selectedChart == "Line Chart" -> {
                     GuardianLineChartView(sessions = allSessions)
                 }
