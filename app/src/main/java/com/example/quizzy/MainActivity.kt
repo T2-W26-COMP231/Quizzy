@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -73,8 +72,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.quizzy.network.NetworkClient
+import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.BarData
+import com.github.mikephil.charting.data.BarDataSet
+import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
@@ -575,12 +578,10 @@ fun GuardianDashboardScreen() {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFFFFBF2))
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFFBF2))) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
             Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp)) {
                 Text(
                     text = "Guardian Dashboard",
@@ -808,10 +809,11 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
     val chartTypes = listOf("Pie Chart", "Bar Chart", "Line Chart")
 
     Box(modifier = Modifier.fillMaxSize()) {
+        // Content area centered in the available space
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 80.dp),
+                .padding(bottom = 80.dp), // Extra padding to keep text centered above the nav bar
             contentAlignment = Alignment.Center
         ) {
             when {
@@ -824,11 +826,12 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                         textAlign = TextAlign.Center
                     )
                 }
-
                 selectedChart == "Line Chart" -> {
                     GuardianLineChartView(sessions = allSessions)
                 }
-
+                selectedChart == "Bar Chart" -> {
+                    GuardianBarChartView(sessions = allSessions)
+                }
                 else -> {
                     Text(
                         text = "$selectedChart screen coming soon!",
@@ -841,11 +844,12 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
             }
         }
 
+        // Navigation Bar anchored at the bottom
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, bottom = 12.dp),
+                .padding(start = 24.dp, end = 24.dp, bottom = 12.dp), // Positioned just above the main navbar
             shape = RoundedCornerShape(24.dp),
             color = Color.White,
             shadowElevation = 12.dp
@@ -860,14 +864,11 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                 chartTypes.forEach { type ->
                     val isSelected = selectedChart == type
                     val label = type.split(" ")[0]
-
+                    
                     Column(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                if (isSelected) Color(0xFFA874FF).copy(alpha = 0.1f)
-                                else Color.Transparent
-                            )
+                            .background(if (isSelected) Color(0xFFA874FF).copy(alpha = 0.1f) else Color.Transparent)
                             .clickable { selectedChart = type }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -883,6 +884,91 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
             }
         }
     }
+}
+
+@Composable
+fun GuardianBarChartView(sessions: List<GuardianQuizSession>) {
+    val sortedSessions = remember(sessions) {
+        sessions.sortedBy { parseSessionDate(it.completedAt)?.time ?: 0L }
+    }
+
+    val entries = remember(sortedSessions) {
+        sortedSessions.mapIndexed { index, session ->
+            BarEntry(index.toFloat(), session.score.toFloat())
+        }
+    }
+
+    val xLabels = remember(sortedSessions) {
+        sortedSessions.map { formatShortChartDate(it.completedAt) }
+    }
+
+    val chartBarColor = Color(0xFFA874FF).toArgb()
+    val chartTextColor = Color(0xFF5A4A3B).toArgb()
+    val chartGridColor = Color(0xFFE6DED0).toArgb()
+
+    AndroidView(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(320.dp),
+        factory = { context ->
+            BarChart(context).apply {
+                layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                description.isEnabled = false
+                setTouchEnabled(true)
+                setPinchZoom(false)
+                setScaleEnabled(false)
+                legend.isEnabled = false
+                axisRight.isEnabled = false
+                setNoDataText("No chart data available")
+                setNoDataTextColor(chartTextColor)
+
+                setExtraOffsets(12f, 12f, 12f, 12f)
+
+                xAxis.apply {
+                    position = XAxis.XAxisPosition.BOTTOM
+                    granularity = 1f
+                    isGranularityEnabled = true
+                    this.textColor = chartTextColor
+                    textSize = 11f
+                    setDrawGridLines(false)
+                    labelRotationAngle = -20f
+                    valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            val index = value.toInt()
+                            return if (index in xLabels.indices) xLabels[index] else ""
+                        }
+                    }
+                }
+
+                axisLeft.apply {
+                    axisMinimum = 0f
+                    granularity = 1f
+                    this.textColor = chartTextColor
+                    textSize = 11f
+                    this.gridColor = chartGridColor
+                    axisLineColor = chartGridColor
+                }
+            }
+        },
+        update = { chart ->
+            val dataSet = BarDataSet(entries, "Quiz Scores").apply {
+                color = chartBarColor
+                valueTextColor = chartTextColor
+                valueTextSize = 11f
+                setDrawValues(true)
+                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return value.toInt().toString()
+                    }
+                }
+            }
+
+            chart.data = BarData(dataSet).apply {
+                barWidth = 0.6f
+            }
+            chart.invalidate()
+        }
+    )
 }
 
 @Composable
