@@ -75,6 +75,7 @@ import com.example.quizzy.network.NetworkClient
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
@@ -518,7 +519,9 @@ fun GuardianDashboardScreen() {
     var allSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
     var displayedSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
     var selectedFilter by remember { mutableStateOf("All") }
-    var selectedDisplay by remember { mutableStateOf("Latest Sessions") }
+    var selectedDisplay by remember {
+        mutableStateOf(sessionManager.getSelectedDisplay() ?: "Latest Activity")
+    }
     var isFilterDropdownExpanded by remember { mutableStateOf(false) }
     var isDisplayDropdownExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
@@ -526,7 +529,7 @@ fun GuardianDashboardScreen() {
 
     val userId = sessionManager.getUserId()
     val filterOptions = listOf("All", "Current Day", "Current Week", "Current Month")
-    val displayOptions = listOf("Latest Sessions", "Charts")
+    val displayOptions = listOf("Latest Activity", "Charts")
 
     LaunchedEffect(Unit) {
         try {
@@ -582,10 +585,12 @@ fun GuardianDashboardScreen() {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFFBF2))) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFFFFBF2))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp)) {
                 Text(
                     text = "Guardian Dashboard",
@@ -713,6 +718,7 @@ fun GuardianDashboardScreen() {
                                         text = { Text(option) },
                                         onClick = {
                                             selectedDisplay = option
+                                            sessionManager.saveSelectedDisplay(option)
                                             isDisplayDropdownExpanded = false
                                         }
                                     )
@@ -723,9 +729,9 @@ fun GuardianDashboardScreen() {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    if (selectedDisplay == "Latest Sessions") {
+                    if (selectedDisplay == "Latest Activity") {
                         Text(
-                            text = "Latest Quiz Sessions",
+                            text = "Latest Activity",
                             fontSize = 18.sp,
                             color = Color(0xFF7B6A58),
                             fontWeight = FontWeight.Medium
@@ -809,15 +815,20 @@ fun GuardianDashboardScreen() {
 
 @Composable
 fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
-    var selectedChart by remember { mutableStateOf("Pie Chart") }
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+
+    var selectedChart by remember {
+        mutableStateOf(sessionManager.getSelectedChart() ?: "Pie Chart")
+    }
+
     val chartTypes = listOf("Pie Chart", "Bar Chart", "Line Chart")
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Content area centered in the available space
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 80.dp), // Extra padding to keep text centered above the nav bar
+                .padding(bottom = 80.dp),
             contentAlignment = Alignment.Center
         ) {
             when {
@@ -830,6 +841,7 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                         textAlign = TextAlign.Center
                     )
                 }
+
                 selectedChart == "Line Chart" -> {
                     GuardianLineChartView(sessions = allSessions)
                 }
@@ -854,12 +866,11 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
             }
         }
 
-        // Navigation Bar anchored at the bottom
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, bottom = 12.dp), // Positioned just above the main navbar
+                .padding(start = 24.dp, end = 24.dp, bottom = 12.dp),
             shape = RoundedCornerShape(24.dp),
             color = Color.White,
             shadowElevation = 12.dp
@@ -874,19 +885,25 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                 chartTypes.forEach { type ->
                     val isSelected = selectedChart == type
                     val label = type.split(" ")[0]
-                    
+
                     Column(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .background(if (isSelected) Color(0xFFA874FF).copy(alpha = 0.1f) else Color.Transparent)
-                            .clickable { selectedChart = type }
+                            .background(
+                                if (isSelected) Color(0xFFA874FF).copy(alpha = 0.22f)
+                                else Color.Transparent
+                            )
+                            .clickable {
+                                selectedChart = type
+                                sessionManager.saveSelectedChart(type)
+                            }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) Color(0xFFA874FF) else Color(0xFFBCB1A4),
-                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color(0xFFA874FF) else Color(0xFF8E857A),
+                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                             fontSize = 14.sp
                         )
                     }
@@ -1013,10 +1030,10 @@ fun GuardianPieChartView(sessions: List<GuardianQuizSession>) {
                 setDrawEntryLabels(true)
                 setEntryLabelColor(chartTextColor)
                 setEntryLabelTextSize(12f)
-                
+
                 legend.isEnabled = true
                 legend.textColor = chartTextColor
-                legend.horizontalAlignment = com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.CENTER
+                legend.horizontalAlignment = Legend.LegendHorizontalAlignment.CENTER
             }
         },
         update = { chart ->
