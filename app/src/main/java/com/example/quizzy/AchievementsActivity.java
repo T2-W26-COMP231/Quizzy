@@ -25,20 +25,28 @@ public class AchievementsActivity extends AppCompatActivity {
         achievementsContainer = findViewById(R.id.achievementsContainer);
         sessionManager = new SessionManager(this);
 
+        // Mark Achievements as the current display section
+        sessionManager.saveSelectedDisplay("Achievements");
+
         findViewById(R.id.navHome).setOnClickListener(v -> {
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Home");
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
 
         findViewById(R.id.navAwards).setOnClickListener(v -> {
-            // already here
+            // Already on Achievements screen
         });
 
         findViewById(R.id.navGuardian).setOnClickListener(v -> {
+            // Return Guardian to its list/activity view by default
+            sessionManager.saveSelectedDisplay("Latest Activity");
+
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Guardian");
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
@@ -46,12 +54,13 @@ public class AchievementsActivity extends AppCompatActivity {
         findViewById(R.id.navSettings).setOnClickListener(v -> {
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Settings");
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
 
         int userId = (int) sessionManager.getUserId();
-        
+
         if (userId == -1) {
             showError("User not logged in.");
             return;
@@ -60,23 +69,25 @@ public class AchievementsActivity extends AppCompatActivity {
         QuizRepository.getUserBadges(userId, new QuizRepository.BadgeCallback() {
             @Override
             public void onSuccess(List<Badges> badges) {
-                showBadges(badges);
+                runOnUiThread(() -> showBadges(badges));
             }
 
             @Override
             public void onError(String error) {
-                showError(error);
+                runOnUiThread(() -> showError(error));
             }
         });
     }
-    
+
     private void showError(String message) {
         achievementsContainer.removeAllViews();
+
         TextView errorView = new TextView(AchievementsActivity.this);
         errorView.setText("Error: " + message);
         errorView.setTextSize(18f);
         errorView.setTextColor(Color.RED);
         errorView.setPadding(20, 40, 20, 20);
+
         achievementsContainer.addView(errorView);
     }
 
