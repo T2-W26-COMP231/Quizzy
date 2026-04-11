@@ -519,7 +519,9 @@ fun GuardianDashboardScreen() {
     var allSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
     var displayedSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
     var selectedFilter by remember { mutableStateOf("All") }
-    var selectedDisplay by remember { mutableStateOf("Latest Sessions") }
+    var selectedDisplay by remember {
+        mutableStateOf(sessionManager.getSelectedDisplay() ?: "Latest Activity")
+    }
     var isFilterDropdownExpanded by remember { mutableStateOf(false) }
     var isDisplayDropdownExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
@@ -527,7 +529,7 @@ fun GuardianDashboardScreen() {
 
     val userId = sessionManager.getUserId()
     val filterOptions = listOf("All", "Current Day", "Current Week", "Current Month")
-    val displayOptions = listOf("Latest Sessions", "Charts")
+    val displayOptions = listOf("Latest Activity", "Charts")
 
     LaunchedEffect(Unit) {
         try {
@@ -716,6 +718,7 @@ fun GuardianDashboardScreen() {
                                         text = { Text(option) },
                                         onClick = {
                                             selectedDisplay = option
+                                            sessionManager.saveSelectedDisplay(option)
                                             isDisplayDropdownExpanded = false
                                         }
                                     )
@@ -726,9 +729,9 @@ fun GuardianDashboardScreen() {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    if (selectedDisplay == "Latest Sessions") {
+                    if (selectedDisplay == "Latest Activity") {
                         Text(
-                            text = "Latest Quiz Sessions",
+                            text = "Latest Activity",
                             fontSize = 18.sp,
                             color = Color(0xFF7B6A58),
                             fontWeight = FontWeight.Medium

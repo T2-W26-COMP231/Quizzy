@@ -29,6 +29,14 @@ class SessionManager(context: Context) {
         return prefs.getString("SELECTED_CHART", null)
     }
 
+    fun saveSelectedDisplay(display: String) {
+        prefs.edit().putString("SELECTED_DISPLAY", display).apply()
+    }
+
+    fun getSelectedDisplay(): String? {
+        return prefs.getString("SELECTED_DISPLAY", null)
+    }
+
     fun logout() {
         prefs.edit().clear().apply()
     }
