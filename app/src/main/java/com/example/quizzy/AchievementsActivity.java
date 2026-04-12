@@ -69,7 +69,10 @@ public class AchievementsActivity extends AppCompatActivity {
         QuizRepository.getUserBadges(userId, new QuizRepository.BadgeCallback() {
             @Override
             public void onSuccess(List<Badges> badges) {
-                runOnUiThread(() -> showBadges(badges));
+                runOnUiThread(() -> {
+                    List<Badges> unlockedBadges = BadgeManager.getUnlockedBadges(badges);
+                    showBadges(unlockedBadges);
+                });
             }
 
             @Override
