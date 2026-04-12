@@ -70,8 +70,8 @@ public class AchievementsActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<Badges> badges) {
                 runOnUiThread(() -> {
-                    List<Badges> unlockedBadges = BadgeManager.getUnlockedBadges(badges);
-                    showBadges(unlockedBadges);
+                    // Store and display all badges (the showBadges logic handles the locked visual state)
+                    showBadges(badges);
                 });
             }
 

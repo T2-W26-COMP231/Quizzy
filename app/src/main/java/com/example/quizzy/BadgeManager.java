@@ -32,6 +32,22 @@ public class BadgeManager {
         return unlockedBadges;
     }
 
+    public static List<Badges> getLockedBadges(List<Badges> allBadges) {
+        List<Badges> lockedBadges = new ArrayList<>();
+
+        if (allBadges == null) {
+            return lockedBadges;
+        }
+
+        for (Badges badge : allBadges) {
+            if (!badge.isUnlocked()) {
+                lockedBadges.add(badge);
+            }
+        }
+
+        return lockedBadges;
+    }
+
     public static List<Badges> mergeBadgeStates(List<Badges> allBadges, List<Badges> earnedBadges) {
         List<Badges> merged = new ArrayList<>();
 
