@@ -33,22 +33,24 @@ public class BadgeController {
                     .orElseThrow(() -> new Exception("Student not found for user_id: " + userId));
 
             List<Badge> allBadges = badgeRepository.findAll();
-            
+
             String earnedBadgesJson = student.getEarnedBadges();
             if (earnedBadgesJson == null || earnedBadgesJson.trim().isEmpty() || earnedBadgesJson.equals("null")) {
                 earnedBadgesJson = "[]";
             }
-            
+
             JSONArray earnedArray = new JSONArray(earnedBadgesJson);
             List<Integer> earnedIds = new ArrayList<>();
+
             for (int i = 0; i < earnedArray.length(); i++) {
                 earnedIds.add(earnedArray.getInt(i));
             }
 
             List<Map<String, Object>> response = new ArrayList<>();
+
             for (Badge badge : allBadges) {
                 Map<String, Object> badgeMap = new HashMap<>();
-                badgeMap.put("badgeId", (long) badge.getBadgeId());
+                badgeMap.put("badgeId", badge.getBadgeId());
                 badgeMap.put("name", badge.getBadgeName());
                 badgeMap.put("description", badge.getDescription());
                 badgeMap.put("unlocked", earnedIds.contains(badge.getBadgeId()));
@@ -56,6 +58,7 @@ public class BadgeController {
             }
 
             return ResponseEntity.ok(response);
+
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }

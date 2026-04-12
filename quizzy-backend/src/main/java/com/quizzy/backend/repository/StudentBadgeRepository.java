@@ -6,4 +6,5 @@ import java.util.Optional;
 
 public interface StudentBadgeRepository extends JpaRepository<StudentBadge, Long> {
     Optional<StudentBadge> findByStudentIdAndBadgeId(Integer studentId, Integer badgeId);
+    List<StudentBadge> findByStudentId(Integer studentId);
 }
