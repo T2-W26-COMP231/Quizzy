@@ -105,6 +105,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        MusicManager.startMusic(this)
+
         val sessionManager = SessionManager(this)
         if (!sessionManager.isLoggedIn()) {
             startActivity(Intent(this, LoginActivity::class.java))
@@ -133,7 +135,18 @@ class MainActivity : ComponentActivity() {
                         bottomBar = {
                             FancyNavigationBar(
                                 currentScreen = currentScreen,
-                                onTabSelected = { currentScreen = it }
+                                onTabSelected = { screen ->
+                                    if (screen == "Achievements") {
+                                        startActivity(
+                                            Intent(
+                                                this@MainActivity,
+                                                AchievementsActivity::class.java
+                                            )
+                                        )
+                                    } else {
+                                        currentScreen = screen
+                                    }
+                                }
                             )
                         }
                     ) { innerPadding ->
@@ -156,18 +169,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
 
-                                "Achievements" -> {
-                                    LaunchedEffect(Unit) {
-                                        startActivity(
-                                            Intent(
-                                                this@MainActivity,
-                                                AchievementsActivity::class.java
-                                            )
-                                        )
-                                        currentScreen = "Home"
-                                    }
-                                }
-
                                 "Guardian" -> GuardianDashboardScreen()
                                 "Settings" -> SettingsScreen()
                             }
@@ -176,6 +177,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        MusicManager.startMusic(this)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -1264,7 +1270,7 @@ fun FancyNavigationBar(
             NavBarItem(
                 icon = Icons.Default.Star,
                 label = "Awards",
-                isSelected = currentScreen == "Achievements",
+                isSelected = false,
                 onClick = { onTabSelected("Achievements") }
             )
             NavBarItem(
