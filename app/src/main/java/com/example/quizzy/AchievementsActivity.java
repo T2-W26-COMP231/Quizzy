@@ -2,20 +2,26 @@ package com.example.quizzy;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AchievementsActivity extends AppCompatActivity {
 
     private LinearLayout achievementsContainer;
     private SessionManager sessionManager;
+
+    private List<Badges> allBadges = new ArrayList<>();
+    private String selectedFilter = "All";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,7 +31,6 @@ public class AchievementsActivity extends AppCompatActivity {
         achievementsContainer = findViewById(R.id.achievementsContainer);
         sessionManager = new SessionManager(this);
 
-        // Mark Achievements as the current display section
         sessionManager.saveSelectedDisplay("Achievements");
 
         findViewById(R.id.navHome).setOnClickListener(v -> {
@@ -37,11 +42,10 @@ public class AchievementsActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.navAwards).setOnClickListener(v -> {
-            // Already on Achievements screen
+            // already here
         });
 
         findViewById(R.id.navGuardian).setOnClickListener(v -> {
-            // Return Guardian to its list/activity view by default
             sessionManager.saveSelectedDisplay("Latest Activity");
 
             Intent intent = new Intent(this, MainActivity.class);
@@ -70,8 +74,8 @@ public class AchievementsActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<Badges> badges) {
                 runOnUiThread(() -> {
-                    // Store and display all badges (the showBadges logic handles the locked visual state)
-                    showBadges(badges);
+                    allBadges = badges != null ? badges : new ArrayList<>();
+                    showBadges();
                 });
             }
 
@@ -94,12 +98,22 @@ public class AchievementsActivity extends AppCompatActivity {
         achievementsContainer.addView(errorView);
     }
 
-    private void showBadges(List<Badges> badges) {
+    private void showBadges() {
         achievementsContainer.removeAllViews();
 
-        if (badges == null || badges.isEmpty()) {
+        addFilterDropdown();
+
+        List<Badges> filteredBadges = getFilteredBadges();
+
+        if (filteredBadges.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText("No badges available yet.");
+            if ("Unlocked".equals(selectedFilter)) {
+                empty.setText("No unlocked badges yet.");
+            } else if ("Locked".equals(selectedFilter)) {
+                empty.setText("No locked badges found.");
+            } else {
+                empty.setText("No badges available yet.");
+            }
             empty.setTextSize(22f);
             empty.setTextColor(Color.parseColor("#6E6257"));
             empty.setGravity(Gravity.CENTER);
@@ -108,7 +122,7 @@ public class AchievementsActivity extends AppCompatActivity {
             return;
         }
 
-        for (Badges badge : badges) {
+        for (Badges badge : filteredBadges) {
             boolean unlocked = badge.isUnlocked();
 
             LinearLayout row = new LinearLayout(this);
@@ -130,7 +144,7 @@ public class AchievementsActivity extends AppCompatActivity {
             TextView title = new TextView(this);
             title.setText(badge.getName());
             title.setTextSize(24f);
-            title.setTypeface(null, android.graphics.Typeface.BOLD);
+            title.setTypeface(null, Typeface.BOLD);
             title.setTextColor(unlocked
                     ? Color.parseColor("#2F241C")
                     : Color.parseColor("#BDBDBD"));
@@ -157,13 +171,11 @@ public class AchievementsActivity extends AppCompatActivity {
 
             row.addView(textLayout);
 
-            if (unlocked) {
-                TextView trophy = new TextView(this);
-                trophy.setText("🏆");
-                trophy.setTextSize(30f);
-                trophy.setPadding(20, 0, 0, 0);
-                row.addView(trophy);
-            }
+            TextView icon = new TextView(this);
+            icon.setText(unlocked ? "🏆" : "🔒");
+            icon.setTextSize(30f);
+            icon.setPadding(20, 0, 0, 0);
+            row.addView(icon);
 
             achievementsContainer.addView(row);
 
@@ -176,5 +188,54 @@ public class AchievementsActivity extends AppCompatActivity {
 
             achievementsContainer.addView(divider);
         }
+    }
+
+    private void addFilterDropdown() {
+        LinearLayout filterRow = new LinearLayout(this);
+        filterRow.setOrientation(LinearLayout.HORIZONTAL);
+        filterRow.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        filterRow.setPadding(0, 10, 0, 30);
+
+        TextView filterButton = new TextView(this);
+        filterButton.setText("Filter: " + selectedFilter + " ▼");
+        filterButton.setTextSize(16f);
+        filterButton.setTypeface(null, Typeface.BOLD);
+        filterButton.setTextColor(Color.parseColor("#5A4A3B"));
+        filterButton.setBackgroundColor(Color.parseColor("#F4EFE7"));
+        filterButton.setPadding(36, 18, 36, 18);
+
+        filterButton.setOnClickListener(v -> {
+            PopupMenu popupMenu = new PopupMenu(AchievementsActivity.this, filterButton);
+            popupMenu.getMenu().add("All");
+            popupMenu.getMenu().add("Unlocked");
+            popupMenu.getMenu().add("Locked");
+
+            popupMenu.setOnMenuItemClickListener(item -> {
+                selectedFilter = item.getTitle().toString();
+                showBadges();
+                return true;
+            });
+
+            popupMenu.show();
+        });
+
+        filterRow.addView(filterButton);
+        achievementsContainer.addView(filterRow);
+    }
+
+    private List<Badges> getFilteredBadges() {
+        List<Badges> filtered = new ArrayList<>();
+
+        for (Badges badge : allBadges) {
+            if ("Unlocked".equals(selectedFilter) && badge.isUnlocked()) {
+                filtered.add(badge);
+            } else if ("Locked".equals(selectedFilter) && !badge.isUnlocked()) {
+                filtered.add(badge);
+            } else if ("All".equals(selectedFilter)) {
+                filtered.add(badge);
+            }
+        }
+
+        return filtered;
     }
 }
