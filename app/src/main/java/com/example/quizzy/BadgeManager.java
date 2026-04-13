@@ -106,7 +106,13 @@ public class BadgeManager {
     }
 
     public static void checkAndUnlockBadges(Context context, int score, int totalQuestions, int gradeLevel) {
-        int userId = 1;
+        SessionManager sessionManager = new SessionManager(context);
+        int userId = (int) sessionManager.getUserId();
+
+        if (userId == -1) {
+            Log.e(TAG, "Cannot unlock badges: user not logged in");
+            return;
+        }
 
         if (totalQuestions > 0) {
             unlockBadge(context, userId, 1); // First Quiz
@@ -152,15 +158,15 @@ public class BadgeManager {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
-                    Log.d(TAG, "Badge unlocked successfully: " + badgeId);
+                    Log.d(TAG, "Badge unlocked successfully for user " + userId + ": " + badgeId);
                 } else {
-                    Log.e(TAG, "Failed to unlock badge " + badgeId + ". Code: " + response.code());
+                    Log.e(TAG, "Failed to unlock badge " + badgeId + " for user " + userId + ". Code: " + response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
-                Log.e(TAG, "Error unlocking badge " + badgeId + ": " + t.getMessage());
+                Log.e(TAG, "Error unlocking badge " + badgeId + " for user " + userId + ": " + t.getMessage());
             }
         });
     }
