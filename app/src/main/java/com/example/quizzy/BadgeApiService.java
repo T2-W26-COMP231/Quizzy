@@ -12,7 +12,7 @@ public interface BadgeApiService {
     @GET("api/users/{userId}/badges")
     Call<List<Badges>> getUserBadges(@Path("userId") int userId);
 
-    @POST("users/{userId}/badges/{badgeId}")
+    @POST("api/users/{userId}/badges/{badgeId}")
     Call<Void> unlockBadge(
             @Path("userId") int userId,
             @Path("badgeId") int badgeId

@@ -36,6 +36,7 @@ public class AchievementsActivity extends AppCompatActivity {
         findViewById(R.id.navHome).setOnClickListener(v -> {
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Home");
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
@@ -49,6 +50,7 @@ public class AchievementsActivity extends AppCompatActivity {
 
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Guardian");
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
@@ -56,6 +58,7 @@ public class AchievementsActivity extends AppCompatActivity {
         findViewById(R.id.navSettings).setOnClickListener(v -> {
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Settings");
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
@@ -69,9 +72,10 @@ public class AchievementsActivity extends AppCompatActivity {
 
         QuizRepository.getUserBadges(userId, new QuizRepository.BadgeCallback() {
             @Override
-            public void onSuccess(List<Badges> badges) {
+            public void onSuccess(List<Badges> earnedBadges) {
                 runOnUiThread(() -> {
-                    allBadges = badges != null ? badges : new ArrayList<>();
+                    List<Badges> catalogBadges = BadgeCatalog.getAllBadges();
+                    allBadges = BadgeManager.mergeBadgeStates(catalogBadges, earnedBadges);
                     showBadges();
                 });
             }
@@ -86,7 +90,7 @@ public class AchievementsActivity extends AppCompatActivity {
     private void showError(String message) {
         achievementsContainer.removeAllViews();
 
-        TextView errorView = new TextView(AchievementsActivity.this);
+        TextView errorView = new TextView(this);
         errorView.setText("Error: " + message);
         errorView.setTextSize(18f);
         errorView.setTextColor(Color.RED);
@@ -105,7 +109,7 @@ public class AchievementsActivity extends AppCompatActivity {
         if (filteredBadges.isEmpty()) {
             TextView empty = new TextView(this);
             if ("Unlocked".equals(selectedFilter)) {
-                empty.setText("No unlocked badges yet.");
+                empty.setText("No unlocked badges found.");
             } else if ("Locked".equals(selectedFilter)) {
                 empty.setText("No locked badges found.");
             } else {
@@ -221,18 +225,12 @@ public class AchievementsActivity extends AppCompatActivity {
     }
 
     private List<Badges> getFilteredBadges() {
-        List<Badges> filtered = new ArrayList<>();
-
-        for (Badges badge : allBadges) {
-            if ("Unlocked".equals(selectedFilter) && badge.isUnlocked()) {
-                filtered.add(badge);
-            } else if ("Locked".equals(selectedFilter) && !badge.isUnlocked()) {
-                filtered.add(badge);
-            } else if ("All".equals(selectedFilter)) {
-                filtered.add(badge);
-            }
+        if ("Unlocked".equals(selectedFilter)) {
+            return BadgeManager.getUnlockedBadges(allBadges);
+        } else if ("Locked".equals(selectedFilter)) {
+            return BadgeManager.getLockedBadges(allBadges);
+        } else {
+            return new ArrayList<>(allBadges);
         }
-
-        return filtered;
     }
 }
