@@ -1,10 +1,9 @@
 package com.quizzy.backend.controller;
 
 import com.quizzy.backend.model.Badge;
-import com.quizzy.backend.model.Student;
+import com.quizzy.backend.model.UserBadge;
 import com.quizzy.backend.repository.BadgeRepository;
-import com.quizzy.backend.repository.StudentRepository;
-import org.json.JSONArray;
+import com.quizzy.backend.repository.UserBadgeRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,33 +18,26 @@ import java.util.Map;
 public class BadgeController {
 
     private final BadgeRepository badgeRepository;
-    private final StudentRepository studentRepository;
+    private final UserBadgeRepository userBadgeRepository;
 
-    public BadgeController(BadgeRepository badgeRepository, StudentRepository studentRepository) {
+    public BadgeController(BadgeRepository badgeRepository,
+                           UserBadgeRepository userBadgeRepository) {
         this.badgeRepository = badgeRepository;
-        this.studentRepository = studentRepository;
+        this.userBadgeRepository = userBadgeRepository;
     }
 
     @GetMapping("/{userId}/badges")
     public ResponseEntity<?> getUserBadges(@PathVariable Integer userId) {
         try {
-            Student student = studentRepository.findByUserId(userId)
-                    .orElseThrow(() -> new Exception("Student not found for user_id: " + userId));
+            List<UserBadge> unlockedUserBadges =
+                    userBadgeRepository.findByUserIdAndUnlockedTrue(userId);
+
+            List<Integer> unlockedBadgeIds = new ArrayList<>();
+            for (UserBadge userBadge : unlockedUserBadges) {
+                unlockedBadgeIds.add(userBadge.getBadgeId());
+            }
 
             List<Badge> allBadges = badgeRepository.findAll();
-
-            String earnedBadgesJson = student.getEarnedBadges();
-            if (earnedBadgesJson == null || earnedBadgesJson.trim().isEmpty() || earnedBadgesJson.equals("null")) {
-                earnedBadgesJson = "[]";
-            }
-
-            JSONArray earnedArray = new JSONArray(earnedBadgesJson);
-            List<Integer> earnedIds = new ArrayList<>();
-
-            for (int i = 0; i < earnedArray.length(); i++) {
-                earnedIds.add(earnedArray.getInt(i));
-            }
-
             List<Map<String, Object>> response = new ArrayList<>();
 
             for (Badge badge : allBadges) {
@@ -53,7 +45,7 @@ public class BadgeController {
                 badgeMap.put("badgeId", badge.getBadgeId());
                 badgeMap.put("name", badge.getBadgeName());
                 badgeMap.put("description", badge.getDescription());
-                badgeMap.put("unlocked", earnedIds.contains(badge.getBadgeId()));
+                badgeMap.put("unlocked", unlockedBadgeIds.contains(badge.getBadgeId()));
                 response.add(badgeMap);
             }
 

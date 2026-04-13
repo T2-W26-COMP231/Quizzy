@@ -1,0 +1,10 @@
+package com.quizzy.backend.repository;
+
+import com.quizzy.backend.model.UserBadge;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface UserBadgeRepository extends JpaRepository<UserBadge, Long> {
+    List<UserBadge> findByUserIdAndUnlockedTrue(Integer userId);
+}
