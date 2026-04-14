@@ -38,4 +38,13 @@ object MusicManager {
         mediaPlayer?.release()
         mediaPlayer = null
     }
+    fun playClickSound(context: Context) {
+        val sound = MediaPlayer.create(context.applicationContext, R.raw.click_sound)
+        sound.setVolume(0.7f, 0.7f)
+        sound.start()
+
+        sound.setOnCompletionListener {
+            it.release()
+        }
+    }
 }

@@ -106,7 +106,10 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     private void validateAnswer() {
+
         if (answered) return;
+        // play click sound
+        MusicManager.INSTANCE.playClickSound(this);
 
         int selectedId = radioGroup.getCheckedRadioButtonId();
 
