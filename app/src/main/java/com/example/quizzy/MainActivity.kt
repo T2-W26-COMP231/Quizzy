@@ -1,5 +1,6 @@
 package com.example.quizzy
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
@@ -1152,6 +1153,12 @@ fun SettingsScreen() {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
 
+    // 🔥 Load saved volume
+    val prefs = context.getSharedPreferences("quizzy_settings", Context.MODE_PRIVATE)
+    var volume by remember {
+        mutableStateOf(prefs.getFloat("music_volume", 0.2f))
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1159,6 +1166,7 @@ fun SettingsScreen() {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
         Text(
             text = "Settings",
             fontSize = 32.sp,
@@ -1166,8 +1174,9 @@ fun SettingsScreen() {
             color = Color(0xFF5A4A3B)
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
+        // 👤 USER INFO
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
@@ -1189,8 +1198,51 @@ fun SettingsScreen() {
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 🎵 MUSIC VOLUME CONTROL
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            shadowElevation = 4.dp
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+
+                Text(
+                    text = "Music Volume",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF5A4A3B)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                androidx.compose.material3.Slider(
+                    value = volume,
+                    onValueChange = { newVolume ->
+                        volume = newVolume
+
+                        // 🔥 Update music in real time
+                        MusicManager.setVolume(context, newVolume)
+
+                        // 🔥 Save value
+                        prefs.edit().putFloat("music_volume", newVolume).apply()
+                    },
+                    valueRange = 0f..1f
+                )
+
+                Text(
+                    text = "${(volume * 100).toInt()}%",
+                    fontSize = 14.sp,
+                    color = Color(0xFF7B6A58)
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
+        // 🚪 LOGOUT BUTTON
         Button(
             onClick = {
                 sessionManager.logout()
