@@ -9,8 +9,9 @@ object MusicManager {
 
     private const val PREFS_NAME = "quizzy_settings"
     private const val KEY_MUSIC_VOLUME = "music_volume"
+    private const val KEY_SFX_VOLUME = "sfx_volume"
 
-    // 🎵 START MUSIC
+    // START MUSIC
     fun startMusic(context: Context) {
         if (mediaPlayer == null) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -51,7 +52,7 @@ object MusicManager {
         mediaPlayer = null
     }
 
-    // 🎚️ SET VOLUME (USED BY SLIDER)
+    // 🎚️ SET MUSIC VOLUME (USED BY SLIDER)
     fun setVolume(context: Context, volume: Float) {
         val safeVolume = volume.coerceIn(0f, 1f)
 
@@ -63,18 +64,34 @@ object MusicManager {
         mediaPlayer?.setVolume(safeVolume, safeVolume)
     }
 
-    // 📥 GET SAVED VOLUME
+    // 📥 GET SAVED MUSIC VOLUME
     fun getVolume(context: Context): Float {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getFloat(KEY_MUSIC_VOLUME, 0.2f)
+    }
+
+    // 🎚️ SET SFX VOLUME (FOR FUTURE SLIDER)
+    fun setSFXVolume(context: Context, volume: Float) {
+        val safeVolume = volume.coerceIn(0f, 1f)
+
+        // Save
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putFloat(KEY_SFX_VOLUME, safeVolume).apply()
+    }
+
+    // 📥 GET SAVED SFX VOLUME
+    fun getSFXVolume(context: Context): Float {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getFloat(KEY_SFX_VOLUME, 0.7f)
     }
 
     // 🔊 CLICK SOUND (SFX)
     fun playClickSound(context: Context) {
         val sound = MediaPlayer.create(context.applicationContext, R.raw.click_sound)
 
-        // You can later make this separate (SFX volume)
-        sound.setVolume(0.7f, 0.7f)
+        // Retrieve the saved SFX volume logic
+        val sfxVolume = getSFXVolume(context)
+        sound.setVolume(sfxVolume, sfxVolume)
 
         sound.start()
 
