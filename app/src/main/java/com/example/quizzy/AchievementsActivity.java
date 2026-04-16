@@ -23,6 +23,7 @@ public class AchievementsActivity extends AppCompatActivity {
 
     private LinearLayout achievementsContainer;
     private SessionManager sessionManager;
+    private boolean isDarkMode;
 
     private List<Badges> allBadges = new ArrayList<>();
     private String selectedFilter = "All";
@@ -34,6 +35,9 @@ public class AchievementsActivity extends AppCompatActivity {
 
         achievementsContainer = findViewById(R.id.achievementsContainer);
         sessionManager = new SessionManager(this);
+        isDarkMode = sessionManager.isDarkMode();
+
+        applyTheme();
 
         selectedFilter = getSavedAchievementsFilter();
 
@@ -95,6 +99,18 @@ public class AchievementsActivity extends AppCompatActivity {
         });
     }
 
+    private void applyTheme() {
+        if (isDarkMode) {
+            View root = findViewById(R.id.achievementsRoot); // assuming R.id.achievementsRoot exists, or use parent
+            if (root == null) root = (View) achievementsContainer.getParent();
+            if (root != null) root.setBackgroundColor(Color.parseColor("#121212"));
+            achievementsContainer.setBackgroundColor(Color.parseColor("#121212"));
+            
+            TextView title = findViewById(R.id.tvAchievementsTitle);
+            if (title != null) title.setTextColor(Color.WHITE);
+        }
+    }
+
     private SharedPreferences getNavPrefs() {
         return getSharedPreferences(NAV_PREFS, MODE_PRIVATE);
     }
@@ -142,7 +158,7 @@ public class AchievementsActivity extends AppCompatActivity {
             }
 
             empty.setTextSize(22f);
-            empty.setTextColor(Color.parseColor("#6E6257"));
+            empty.setTextColor(isDarkMode ? Color.LTGRAY : Color.parseColor("#6E6257"));
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, 100, 0, 0);
 
@@ -174,7 +190,7 @@ public class AchievementsActivity extends AppCompatActivity {
             title.setTextSize(24f);
             title.setTypeface(null, Typeface.BOLD);
             title.setTextColor(unlocked
-                    ? Color.parseColor("#2F241C")
+                    ? (isDarkMode ? Color.WHITE : Color.parseColor("#2F241C"))
                     : Color.parseColor("#BDBDBD"));
 
             TextView description = new TextView(this);
@@ -182,7 +198,7 @@ public class AchievementsActivity extends AppCompatActivity {
             description.setTextSize(18f);
             description.setPadding(0, 8, 0, 0);
             description.setTextColor(unlocked
-                    ? Color.parseColor("#6E6257")
+                    ? (isDarkMode ? Color.LTGRAY : Color.parseColor("#6E6257"))
                     : Color.parseColor("#D0D0D0"));
 
             TextView status = new TextView(this);
@@ -212,7 +228,7 @@ public class AchievementsActivity extends AppCompatActivity {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     2
             ));
-            divider.setBackgroundColor(Color.parseColor("#D8D2C8"));
+            divider.setBackgroundColor(isDarkMode ? Color.DKGRAY : Color.parseColor("#D8D2C8"));
 
             achievementsContainer.addView(divider);
         }
@@ -228,8 +244,8 @@ public class AchievementsActivity extends AppCompatActivity {
         filterButton.setText("Filter: " + selectedFilter + " ▼");
         filterButton.setTextSize(16f);
         filterButton.setTypeface(null, Typeface.BOLD);
-        filterButton.setTextColor(Color.parseColor("#5A4A3B"));
-        filterButton.setBackgroundColor(Color.parseColor("#F4EFE7"));
+        filterButton.setTextColor(isDarkMode ? Color.WHITE : Color.parseColor("#5A4A3B"));
+        filterButton.setBackgroundColor(isDarkMode ? Color.parseColor("#333333") : Color.parseColor("#F4EFE7"));
         filterButton.setPadding(36, 18, 36, 18);
 
         filterButton.setOnClickListener(v -> {

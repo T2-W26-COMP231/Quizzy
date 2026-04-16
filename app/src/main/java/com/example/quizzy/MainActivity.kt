@@ -19,6 +19,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.quizzy.network.NetworkClient
+import com.example.quizzy.ui.theme.QuizzyTheme
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
@@ -149,23 +152,28 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            var currentScreen by remember {
-                mutableStateOf(getLastMainScreen(this@MainActivity))
+            val systemInDarkTheme = isSystemInDarkTheme()
+            var isDarkMode by remember {
+                mutableStateOf(sessionManager.isDarkMode(systemInDarkTheme))
             }
 
-            LaunchedEffect(pendingStartScreen) {
-                val startScreen = pendingStartScreen
-                if (!startScreen.isNullOrBlank()) {
-                    currentScreen = startScreen
-                    saveLastMainScreen(this@MainActivity, startScreen)
-                    pendingStartScreen = null
+            QuizzyTheme(darkTheme = isDarkMode) {
+                var currentScreen by remember {
+                    mutableStateOf(getLastMainScreen(this@MainActivity))
                 }
-            }
 
-            MaterialTheme {
+                LaunchedEffect(pendingStartScreen) {
+                    val startScreen = pendingStartScreen
+                    if (!startScreen.isNullOrBlank()) {
+                        currentScreen = startScreen
+                        saveLastMainScreen(this@MainActivity, startScreen)
+                        pendingStartScreen = null
+                    }
+                }
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFFFFFBF2)
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     Scaffold(
                         bottomBar = {
@@ -211,7 +219,13 @@ class MainActivity : ComponentActivity() {
                                 )
 
                                 "Guardian" -> GuardianDashboardScreen()
-                                "Settings" -> SettingsScreen()
+                                "Settings" -> SettingsScreen(
+                                    isDarkMode = isDarkMode,
+                                    onThemeChanged = { dark ->
+                                        isDarkMode = dark
+                                        sessionManager.setThemeMode(dark)
+                                    }
+                                )
 
                                 else -> DashboardScreen(
                                     onStartQuiz = {
@@ -280,7 +294,7 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFFFFFBF2), Color(0xFFF8F5EC))
+                    colors = listOf(MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.surfaceVariant)
                 )
             )
             .padding(24.dp),
@@ -298,7 +312,7 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
                 text = "uizzy",
                 fontSize = 64.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF5A4A3B),
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
@@ -309,7 +323,7 @@ fun DashboardScreen(onStartQuiz: () -> Unit) {
             text = "Ready to test your knowledge?",
             fontSize = 20.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF7B6A58),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
 
@@ -430,7 +444,7 @@ fun QuizSelectionScreen(
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFFFFFBF2), Color(0xFFF8F5EC))
+                    colors = listOf(MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.surfaceVariant)
                 )
             )
             .padding(horizontal = 24.dp, vertical = 32.dp),
@@ -440,7 +454,7 @@ fun QuizSelectionScreen(
             text = "Select Grade",
             fontSize = 38.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF5A4A3B)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -449,7 +463,7 @@ fun QuizSelectionScreen(
             text = "Choose your level to begin the quiz",
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF7B6A58),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -665,7 +679,7 @@ fun GuardianDashboardScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFFBF2))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp)) {
@@ -673,7 +687,7 @@ fun GuardianDashboardScreen() {
                     text = "Guardian Dashboard",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF5A4A3B)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -697,14 +711,14 @@ fun GuardianDashboardScreen() {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(24.dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 8.dp
                     ) {
                         Column(modifier = Modifier.padding(24.dp)) {
                             Text(
                                 text = "Student Progress:",
                                 fontSize = 18.sp,
-                                color = Color(0xFF7B6A58),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium
                             )
 
@@ -731,8 +745,8 @@ fun GuardianDashboardScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White,
-                                    contentColor = Color(0xFF5A4A3B)
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                             ) {
@@ -771,8 +785,8 @@ fun GuardianDashboardScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White,
-                                    contentColor = Color(0xFF5A4A3B)
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                             ) {
@@ -812,7 +826,7 @@ fun GuardianDashboardScreen() {
                             Text(
                                 text = "Latest Activity",
                                 fontSize = 18.sp,
-                                color = Color(0xFF7B6A58),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium
                             )
 
@@ -844,7 +858,7 @@ fun GuardianDashboardScreen() {
                                         Surface(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(20.dp),
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.surface,
                                             shadowElevation = 4.dp
                                         ) {
                                             Column(modifier = Modifier.padding(16.dp)) {
@@ -852,7 +866,7 @@ fun GuardianDashboardScreen() {
                                                     text = "Session ${index + 1}",
                                                     fontSize = 18.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF5A4A3B)
+                                                    color = MaterialTheme.colorScheme.onSurface
                                                 )
 
                                                 Spacer(modifier = Modifier.height(8.dp))
@@ -867,13 +881,13 @@ fun GuardianDashboardScreen() {
                                                 Text(
                                                     text = "Total Questions: ${session.totalQuestions}",
                                                     fontSize = 14.sp,
-                                                    color = Color(0xFF7B6A58)
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
 
                                                 Text(
                                                     text = "Completed: ${formatSessionDate(session.completedAt)}",
                                                     fontSize = 14.sp,
-                                                    color = Color(0xFF7B6A58)
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
                                         }
@@ -902,7 +916,7 @@ fun GuardianAchievementsView(allBadges: List<Badges>) {
         Text(
             text = "Achievements",
             fontSize = 18.sp,
-            color = Color(0xFF7B6A58),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
 
@@ -933,7 +947,7 @@ fun GuardianAchievementsView(allBadges: List<Badges>) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 4.dp
                     ) {
                         Row(
@@ -954,7 +968,7 @@ fun GuardianAchievementsView(allBadges: List<Badges>) {
                                     text = badge.name,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (unlocked) Color(0xFF2F241C) else Color(0xFF9E9E9E)
+                                    color = if (unlocked) MaterialTheme.colorScheme.onSurface else Color(0xFF9E9E9E)
                                 )
 
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -962,7 +976,7 @@ fun GuardianAchievementsView(allBadges: List<Badges>) {
                                 Text(
                                     text = badge.description,
                                     fontSize = 14.sp,
-                                    color = if (unlocked) Color(0xFF6E6257) else Color(0xFFBDBDBD)
+                                    color = if (unlocked) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFFBDBDBD)
                                 )
 
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -1005,7 +1019,7 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                     Text(
                         text = "No chart data available.",
                         fontSize = 18.sp,
-                        color = Color(0xFF7B6A58),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center
                     )
@@ -1027,7 +1041,7 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                     Text(
                         text = "$selectedChart screen coming soon!",
                         fontSize = 18.sp,
-                        color = Color(0xFF7B6A58),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center
                     )
@@ -1041,7 +1055,7 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                 .fillMaxWidth()
                 .padding(start = 24.dp, end = 24.dp, bottom = 12.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 12.dp
         ) {
             Row(
@@ -1071,7 +1085,7 @@ fun GuardianChartsView(allSessions: List<GuardianQuizSession>) {
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) Color(0xFFA874FF) else Color(0xFF8E857A),
+                            color = if (isSelected) Color(0xFFA874FF) else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                             fontSize = 14.sp
                         )
@@ -1099,8 +1113,8 @@ fun GuardianBarChartView(sessions: List<GuardianQuizSession>) {
     }
 
     val chartBarColor = Color(0xFFA874FF).toArgb()
-    val chartTextColor = Color(0xFF5A4A3B).toArgb()
-    val chartGridColor = Color(0xFFE6DED0).toArgb()
+    val chartTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val chartGridColor = MaterialTheme.colorScheme.outlineVariant.toArgb()
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -1114,7 +1128,7 @@ fun GuardianBarChartView(sessions: List<GuardianQuizSession>) {
                 text = "Score",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF5A4A3B),
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .graphicsLayer { rotationZ = -90f }
                     .padding(bottom = 8.dp)
@@ -1189,7 +1203,7 @@ fun GuardianBarChartView(sessions: List<GuardianQuizSession>) {
             text = "Date",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF5A4A3B),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(top = 4.dp)
         )
     }
@@ -1211,7 +1225,7 @@ fun GuardianPieChartView(sessions: List<GuardianQuizSession>) {
         Color.Red.toArgb()
     )
 
-    val chartTextColor = Color(0xFF5A4A3B).toArgb()
+    val chartTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
 
     AndroidView(
         modifier = Modifier
@@ -1271,8 +1285,8 @@ fun GuardianLineChartView(sessions: List<GuardianQuizSession>) {
     }
 
     val chartLineColor = Color(0xFFA874FF).toArgb()
-    val chartTextColor = Color(0xFF5A4A3B).toArgb()
-    val chartGridColor = Color(0xFFE6DED0).toArgb()
+    val chartTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val chartGridColor = MaterialTheme.colorScheme.outlineVariant.toArgb()
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -1286,7 +1300,7 @@ fun GuardianLineChartView(sessions: List<GuardianQuizSession>) {
                 text = "Score",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF5A4A3B),
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .graphicsLayer { rotationZ = -90f }
                     .padding(bottom = 8.dp)
@@ -1362,31 +1376,29 @@ fun GuardianLineChartView(sessions: List<GuardianQuizSession>) {
             text = "Date",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF5A4A3B),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(top = 4.dp)
         )
     }
 }
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    isDarkMode: Boolean,
+    onThemeChanged: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
 
     val prefs = context.getSharedPreferences("quizzy_settings", Context.MODE_PRIVATE)
-
     var volume by remember {
         mutableStateOf(prefs.getFloat("music_volume", 0.2f))
-    }
-
-    var sfxVolume by remember {
-        mutableStateOf(prefs.getFloat("sfx_volume", 0.7f))
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFFBF2))
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -1394,7 +1406,7 @@ fun SettingsScreen() {
             text = "Settings",
             fontSize = 32.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF5A4A3B)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -1402,20 +1414,20 @@ fun SettingsScreen() {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 4.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
                     text = "Logged in as:",
                     fontSize = 16.sp,
-                    color = Color(0xFF7B6A58)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = sessionManager.getUsername() ?: "Guest",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5A4A3B)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -1425,7 +1437,7 @@ fun SettingsScreen() {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 4.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
@@ -1433,7 +1445,7 @@ fun SettingsScreen() {
                     text = "Music Volume",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5A4A3B)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1451,7 +1463,7 @@ fun SettingsScreen() {
                 Text(
                     text = "${(volume * 100).toInt()}%",
                     fontSize = 14.sp,
-                    color = Color(0xFF7B6A58)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -1461,34 +1473,26 @@ fun SettingsScreen() {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 4.dp
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text(
-                    text = "Sound Effects Volume",
+                    text = "Dark Mode",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5A4A3B)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                androidx.compose.material3.Slider(
-                    value = sfxVolume,
-                    onValueChange = { newVolume ->
-                        sfxVolume = newVolume
-                        MusicManager.setSFXVolume(context, newVolume)
-                        prefs.edit().putFloat("sfx_volume", newVolume).apply()
-                    },
-                    valueRange = 0f..1f
-                )
-
-                Text(
-                    text = "${(sfxVolume * 100).toInt()}%",
-                    fontSize = 14.sp,
-                    color = Color(0xFF7B6A58)
+                Switch(
+                    checked = isDarkMode,
+                    onCheckedChange = onThemeChanged
                 )
             }
         }
@@ -1556,7 +1560,7 @@ fun FancyNavigationBar(
             .fillMaxWidth()
             .padding(16.dp),
         shape = RoundedCornerShape(32.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 12.dp
     ) {
         Row(
@@ -1606,7 +1610,7 @@ fun NavBarItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val tint = if (isSelected) Color(0xFFA874FF) else Color(0xFFBCB1A4)
+    val tint = if (isSelected) Color(0xFFA874FF) else MaterialTheme.colorScheme.onSurfaceVariant
     val background =
         if (isSelected) Color(0xFFA874FF).copy(alpha = 0.1f) else Color.Transparent
 
