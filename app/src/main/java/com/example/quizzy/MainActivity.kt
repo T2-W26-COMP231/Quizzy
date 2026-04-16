@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import androidx.activity.ComponentActivity
@@ -20,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -101,10 +104,37 @@ data class GuardianQuizSession(
     val totalQuestions: Int
 )
 
+private const val NAV_PREFS = "quizzy_navigation_state"
+private const val KEY_LAST_MAIN_SCREEN = "last_main_screen"
+private const val KEY_GUARDIAN_FILTER = "guardian_filter"
+
+private fun getNavPrefs(context: Context) =
+    context.getSharedPreferences(NAV_PREFS, Context.MODE_PRIVATE)
+
+private fun saveLastMainScreen(context: Context, screen: String) {
+    getNavPrefs(context).edit().putString(KEY_LAST_MAIN_SCREEN, screen).apply()
+}
+
+private fun getLastMainScreen(context: Context): String {
+    return getNavPrefs(context).getString(KEY_LAST_MAIN_SCREEN, "Home") ?: "Home"
+}
+
+private fun saveGuardianFilter(context: Context, filter: String) {
+    getNavPrefs(context).edit().putString(KEY_GUARDIAN_FILTER, filter).apply()
+}
+
+private fun getGuardianFilter(context: Context): String {
+    return getNavPrefs(context).getString(KEY_GUARDIAN_FILTER, "Last 15") ?: "Last 15"
+}
+
 class MainActivity : ComponentActivity() {
+
+    private var pendingStartScreen by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        pendingStartScreen = intent.getStringExtra("start_screen")
 
         MusicManager.startMusic(this)
 
@@ -118,12 +148,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            var currentScreen by remember { mutableStateOf("Home") }
+            var currentScreen by remember {
+                mutableStateOf(getLastMainScreen(this@MainActivity))
+            }
 
-            LaunchedEffect(intent) {
-                val startScreen = intent.getStringExtra("start_screen")
-                if (startScreen != null) {
+            LaunchedEffect(pendingStartScreen) {
+                val startScreen = pendingStartScreen
+                if (!startScreen.isNullOrBlank()) {
                     currentScreen = startScreen
+                    saveLastMainScreen(this@MainActivity, startScreen)
+                    pendingStartScreen = null
                 }
             }
 
@@ -138,14 +172,17 @@ class MainActivity : ComponentActivity() {
                                 currentScreen = currentScreen,
                                 onTabSelected = { screen ->
                                     if (screen == "Achievements") {
-                                        startActivity(
-                                            Intent(
-                                                this@MainActivity,
-                                                AchievementsActivity::class.java
-                                            )
+                                        saveLastMainScreen(this@MainActivity, currentScreen)
+
+                                        val achievementsIntent = Intent(
+                                            this@MainActivity,
+                                            AchievementsActivity::class.java
                                         )
+                                        achievementsIntent.putExtra("start_screen", currentScreen)
+                                        startActivity(achievementsIntent)
                                     } else {
                                         currentScreen = screen
+                                        saveLastMainScreen(this@MainActivity, screen)
                                     }
                                 }
                             )
@@ -154,24 +191,33 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.padding(innerPadding)) {
                             when (currentScreen) {
                                 "Home", "Dashboard" -> DashboardScreen(
-                                    onStartQuiz = { currentScreen = "QuizSelection" }
+                                    onStartQuiz = {
+                                        currentScreen = "QuizSelection"
+                                        saveLastMainScreen(this@MainActivity, "QuizSelection")
+                                    }
                                 )
 
                                 "QuizSelection" -> QuizSelectionScreen(
                                     onGradeSelected = { gradeLevel, gradeName ->
-                                        val intent = Intent(
+                                        val instructionsIntent = Intent(
                                             this@MainActivity,
                                             InstructionsActivity::class.java
-                                        ).apply {
-                                            putExtra("GRADE_LEVEL", gradeLevel)
-                                            putExtra("GRADE_NAME", gradeName)
-                                        }
-                                        startActivity(intent)
+                                        )
+                                        instructionsIntent.putExtra("GRADE_LEVEL", gradeLevel)
+                                        instructionsIntent.putExtra("GRADE_NAME", gradeName)
+                                        startActivity(instructionsIntent)
                                     }
                                 )
 
                                 "Guardian" -> GuardianDashboardScreen()
                                 "Settings" -> SettingsScreen()
+
+                                else -> DashboardScreen(
+                                    onStartQuiz = {
+                                        currentScreen = "QuizSelection"
+                                        saveLastMainScreen(this@MainActivity, "QuizSelection")
+                                    }
+                                )
                             }
                         }
                     }
@@ -188,6 +234,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        pendingStartScreen = intent.getStringExtra("start_screen")
     }
 }
 
@@ -497,23 +544,27 @@ private fun applySessionFilter(
     sessions: List<GuardianQuizSession>,
     filter: String
 ): List<GuardianQuizSession> {
+    val sortedSessions = sessions.sortedBy { parseSessionDate(it.completedAt)?.time ?: 0L }
+
     return when (filter) {
-        "Current Day" -> sessions.filter { session ->
+        "Last 15" -> sortedSessions.takeLast(15)
+
+        "Current Day" -> sortedSessions.filter { session ->
             val parsedDate = parseSessionDate(session.completedAt)
             parsedDate != null && isInCurrentDay(parsedDate)
         }
 
-        "Current Week" -> sessions.filter { session ->
+        "Current Week" -> sortedSessions.filter { session ->
             val parsedDate = parseSessionDate(session.completedAt)
             parsedDate != null && isInCurrentWeek(parsedDate)
         }
 
-        "Current Month" -> sessions.filter { session ->
+        "Current Month" -> sortedSessions.filter { session ->
             val parsedDate = parseSessionDate(session.completedAt)
             parsedDate != null && isInCurrentMonth(parsedDate)
         }
 
-        else -> sessions
+        else -> sortedSessions.takeLast(15)
     }
 }
 
@@ -525,18 +576,19 @@ fun GuardianDashboardScreen() {
     var totalScore by remember { mutableIntStateOf(0) }
     var allSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
     var displayedSessions by remember { mutableStateOf<List<GuardianQuizSession>>(emptyList()) }
-    var selectedFilter by remember { mutableStateOf("All") }
+    var selectedFilter by remember { mutableStateOf(getGuardianFilter(context)) }
     var selectedDisplay by remember {
         mutableStateOf(sessionManager.getSelectedDisplay() ?: "Latest Activity")
     }
+    var allBadges by remember { mutableStateOf<List<Badges>>(emptyList()) }
     var isFilterDropdownExpanded by remember { mutableStateOf(false) }
     var isDisplayDropdownExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
 
     val userId = sessionManager.getUserId()
-    val filterOptions = listOf("All", "Current Day", "Current Week", "Current Month")
-    val displayOptions = listOf("Latest Activity", "Charts")
+    val filterOptions = listOf("Last 15", "Current Day", "Current Week", "Current Month")
+    val displayOptions = listOf("Latest Activity", "Charts", "Achievements")
 
     LaunchedEffect(Unit) {
         try {
@@ -584,6 +636,23 @@ fun GuardianDashboardScreen() {
                 Log.e("GUARDIAN", "Sessions fetch failed: ${error?.message}", error)
                 errorMessage = "Failed to load latest sessions"
             }
+
+            QuizRepository.getUserBadges(userId.toInt(), object : QuizRepository.BadgeCallback {
+                override fun onSuccess(earnedBadges: List<Badges>) {
+                    Handler(Looper.getMainLooper()).post {
+                        val catalogBadges = BadgeCatalog.getAllBadges()
+                        allBadges = BadgeManager.mergeBadgeStates(catalogBadges, earnedBadges)
+                    }
+                }
+
+                override fun onError(error: String) {
+                    Handler(Looper.getMainLooper()).post {
+                        if (allBadges.isEmpty()) {
+                            allBadges = BadgeCatalog.getAllBadges()
+                        }
+                    }
+                }
+            })
         } catch (e: Exception) {
             Log.e("GUARDIAN", "Error: ${e.message}", e)
             errorMessage = "Something went wrong"
@@ -686,6 +755,7 @@ fun GuardianDashboardScreen() {
                                         text = { Text(option) },
                                         onClick = {
                                             selectedFilter = option
+                                            saveGuardianFilter(context, option)
                                             displayedSessions = applySessionFilter(allSessions, option)
                                             isFilterDropdownExpanded = false
                                         }
@@ -736,83 +806,174 @@ fun GuardianDashboardScreen() {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    if (selectedDisplay == "Latest Activity") {
-                        Text(
-                            text = "Latest Activity",
-                            fontSize = 18.sp,
-                            color = Color(0xFF7B6A58),
-                            fontWeight = FontWeight.Medium
-                        )
+                    when (selectedDisplay) {
+                        "Latest Activity" -> {
+                            Text(
+                                text = "Latest Activity",
+                                fontSize = 18.sp,
+                                color = Color(0xFF7B6A58),
+                                fontWeight = FontWeight.Medium
+                            )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                        if (displayedSessions.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (allSessions.isEmpty()) {
-                                        "No quiz sessions found."
-                                    } else {
-                                        "No quiz sessions found for $selectedFilter."
-                                    },
-                                    fontSize = 16.sp,
-                                    color = Color.Gray
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                itemsIndexed(displayedSessions) { index, session ->
-                                    Surface(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(20.dp),
-                                        color = Color.White,
-                                        shadowElevation = 4.dp
-                                    ) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
-                                            val sessionNumber =
-                                                if (session.displaySessionNumber > 0) session.displaySessionNumber else index + 1
+                            if (displayedSessions.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (allSessions.isEmpty()) {
+                                            "No quiz sessions found."
+                                        } else {
+                                            "No quiz sessions found for $selectedFilter."
+                                        },
+                                        fontSize = 16.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    itemsIndexed(displayedSessions) { index, session ->
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(20.dp),
+                                            color = Color.White,
+                                            shadowElevation = 4.dp
+                                        ) {
+                                            Column(modifier = Modifier.padding(16.dp)) {
+                                                Text(
+                                                    text = "Session ${index + 1}",
+                                                    fontSize = 18.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF5A4A3B)
+                                                )
 
-                                            Text(
-                                                text = "Session $sessionNumber",
-                                                fontSize = 18.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF5A4A3B)
-                                            )
+                                                Spacer(modifier = Modifier.height(8.dp))
 
-                                            Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    text = "Score: ${session.score}",
+                                                    fontSize = 16.sp,
+                                                    color = Color(0xFFA874FF),
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
 
-                                            Text(
-                                                text = "Score: ${session.score}",
-                                                fontSize = 16.sp,
-                                                color = Color(0xFFA874FF),
-                                                fontWeight = FontWeight.SemiBold
-                                            )
+                                                Text(
+                                                    text = "Total Questions: ${session.totalQuestions}",
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF7B6A58)
+                                                )
 
-                                            Text(
-                                                text = "Total Questions: ${session.totalQuestions}",
-                                                fontSize = 14.sp,
-                                                color = Color(0xFF7B6A58)
-                                            )
-
-                                            Text(
-                                                text = "Completed: ${formatSessionDate(session.completedAt)}",
-                                                fontSize = 14.sp,
-                                                color = Color(0xFF7B6A58)
-                                            )
+                                                Text(
+                                                    text = "Completed: ${formatSessionDate(session.completedAt)}",
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF7B6A58)
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    } else {
-                        GuardianChartsView(allSessions = displayedSessions)
+
+                        "Charts" -> {
+                            GuardianChartsView(allSessions = displayedSessions)
+                        }
+
+                        "Achievements" -> {
+                            GuardianAchievementsView(allBadges = allBadges)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GuardianAchievementsView(allBadges: List<Badges>) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = "Achievements",
+            fontSize = 18.sp,
+            color = Color(0xFF7B6A58),
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (allBadges.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No badges available yet.",
+                    fontSize = 16.sp,
+                    color = Color.Gray
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                itemsIndexed(allBadges) { _, badge ->
+                    val unlocked = badge.isUnlocked
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        shadowElevation = 4.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (unlocked) "🏆" else "🔒",
+                                fontSize = 28.sp
+                            )
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = badge.name,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (unlocked) Color(0xFF2F241C) else Color(0xFF9E9E9E)
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = badge.description,
+                                    fontSize = 14.sp,
+                                    color = if (unlocked) Color(0xFF6E6257) else Color(0xFFBDBDBD)
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = if (unlocked) "Unlocked" else "Locked",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (unlocked) Color(0xFF2E7D32) else Color(0xFF9E9E9E)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -962,24 +1123,25 @@ fun GuardianBarChartView(sessions: List<GuardianQuizSession>) {
                     position = XAxis.XAxisPosition.BOTTOM
                     granularity = 1f
                     isGranularityEnabled = true
-                    this.textColor = chartTextColor
+                    textColor = chartTextColor
                     textSize = 11f
                     setDrawGridLines(false)
                     labelRotationAngle = -20f
-                    valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                        override fun getFormattedValue(value: Float): String {
-                            val index = value.toInt()
-                            return if (index in xLabels.indices) xLabels[index] else ""
+                    valueFormatter =
+                        object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val index = value.toInt()
+                                return if (index in xLabels.indices) xLabels[index] else ""
+                            }
                         }
-                    }
                 }
 
                 axisLeft.apply {
                     axisMinimum = 0f
                     granularity = 1f
-                    this.textColor = chartTextColor
+                    textColor = chartTextColor
                     textSize = 11f
-                    this.gridColor = chartGridColor
+                    gridColor = chartGridColor
                     axisLineColor = chartGridColor
                 }
             }
@@ -990,11 +1152,12 @@ fun GuardianBarChartView(sessions: List<GuardianQuizSession>) {
                 valueTextColor = chartTextColor
                 valueTextSize = 11f
                 setDrawValues(true)
-                valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        return value.toInt().toString()
+                valueFormatter =
+                    object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String {
+                            return value.toInt().toString()
+                        }
                     }
-                }
             }
 
             chart.data = BarData(dataSet).apply {
@@ -1052,9 +1215,12 @@ fun GuardianPieChartView(sessions: List<GuardianQuizSession>) {
                 sliceSpace = 3f
             }
             chart.data = PieData(dataSet).apply {
-                setValueFormatter(object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String = value.toInt().toString()
-                })
+                setValueFormatter(
+                    object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                        override fun getFormattedValue(value: Float): String =
+                            value.toInt().toString()
+                    }
+                )
             }
             chart.invalidate()
         }
@@ -1103,24 +1269,25 @@ fun GuardianLineChartView(sessions: List<GuardianQuizSession>) {
                     position = XAxis.XAxisPosition.BOTTOM
                     granularity = 1f
                     isGranularityEnabled = true
-                    this.textColor = chartTextColor
+                    textColor = chartTextColor
                     textSize = 11f
                     setDrawGridLines(false)
                     labelRotationAngle = -20f
-                    valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                        override fun getFormattedValue(value: Float): String {
-                            val index = value.toInt()
-                            return if (index in xLabels.indices) xLabels[index] else ""
+                    valueFormatter =
+                        object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                            override fun getFormattedValue(value: Float): String {
+                                val index = value.toInt()
+                                return if (index in xLabels.indices) xLabels[index] else ""
+                            }
                         }
-                    }
                 }
 
                 axisLeft.apply {
                     axisMinimum = 0f
                     granularity = 1f
-                    this.textColor = chartTextColor
+                    textColor = chartTextColor
                     textSize = 11f
-                    this.gridColor = chartGridColor
+                    gridColor = chartGridColor
                     axisLineColor = chartGridColor
                 }
             }
@@ -1170,7 +1337,6 @@ fun SettingsScreen() {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
         Text(
             text = "Settings",
             fontSize = 32.sp,
@@ -1210,7 +1376,6 @@ fun SettingsScreen() {
             shadowElevation = 4.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-
                 Text(
                     text = "Music Volume",
                     fontSize = 18.sp,
@@ -1280,9 +1445,10 @@ fun SettingsScreen() {
         Button(
             onClick = {
                 sessionManager.logout()
-                val intent = Intent(context, LoginActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                context.startActivity(intent)
+                val loginIntent = Intent(context, LoginActivity::class.java)
+                loginIntent.flags =
+                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                context.startActivity(loginIntent)
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -1350,21 +1516,26 @@ fun FancyNavigationBar(
             NavBarItem(
                 icon = Icons.Default.Home,
                 label = "Home",
-                isSelected = currentScreen == "Home" || currentScreen == "Dashboard" || currentScreen == "QuizSelection",
+                isSelected = currentScreen == "Home" ||
+                        currentScreen == "Dashboard" ||
+                        currentScreen == "QuizSelection",
                 onClick = { onTabSelected("Home") }
             )
+
             NavBarItem(
                 icon = Icons.Default.Star,
                 label = "Awards",
                 isSelected = false,
                 onClick = { onTabSelected("Achievements") }
             )
+
             NavBarItem(
                 icon = Icons.Default.Person,
                 label = "Guardian",
                 isSelected = currentScreen == "Guardian",
                 onClick = { onTabSelected("Guardian") }
             )
+
             NavBarItem(
                 icon = Icons.Default.Settings,
                 label = "Settings",
@@ -1383,7 +1554,8 @@ fun NavBarItem(
     onClick: () -> Unit
 ) {
     val tint = if (isSelected) Color(0xFFA874FF) else Color(0xFFBCB1A4)
-    val background = if (isSelected) Color(0xFFA874FF).copy(alpha = 0.1f) else Color.Transparent
+    val background =
+        if (isSelected) Color(0xFFA874FF).copy(alpha = 0.1f) else Color.Transparent
 
     Column(
         modifier = Modifier
@@ -1400,6 +1572,7 @@ fun NavBarItem(
             tint = tint,
             modifier = Modifier.size(28.dp)
         )
+
         if (isSelected) {
             Text(
                 text = label,
