@@ -35,16 +35,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -1389,6 +1393,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    val scrollState = rememberScrollState()
 
     val prefs = context.getSharedPreferences("quizzy_settings", Context.MODE_PRIVATE)
 
@@ -1403,7 +1408,8 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFFBF2))
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(scrollState)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -1412,7 +1418,7 @@ fun SettingsScreen(
             text = "Settings",
             fontSize = 32.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF5A4A3B)
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -1420,20 +1426,20 @@ fun SettingsScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 4.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
                     text = "Logged in as:",
                     fontSize = 16.sp,
-                    color = Color(0xFF7B6A58)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = sessionManager.getUsername() ?: "Guest",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5A4A3B)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -1443,7 +1449,7 @@ fun SettingsScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 4.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
@@ -1452,7 +1458,7 @@ fun SettingsScreen(
                     text = "Music Volume",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5A4A3B)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1470,7 +1476,7 @@ fun SettingsScreen(
                 Text(
                     text = "${(volume * 100).toInt()}%",
                     fontSize = 14.sp,
-                    color = Color(0xFF7B6A58)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -1480,7 +1486,7 @@ fun SettingsScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 4.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
@@ -1489,7 +1495,7 @@ fun SettingsScreen(
                     text = "Sound Effects Volume",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5A4A3B)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1507,7 +1513,7 @@ fun SettingsScreen(
                 Text(
                     text = "${(sfxVolume * 100).toInt()}%",
                     fontSize = 14.sp,
-                    color = Color(0xFF7B6A58)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -1517,31 +1523,54 @@ fun SettingsScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 4.dp
         ) {
-            Row(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Dark Mode",
+                    text = "Theme",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5A4A3B)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Switch(
-                    checked = isDarkMode,
-                    onCheckedChange = onThemeChanged
-                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WbSunny,
+                        contentDescription = "Light Mode",
+                        tint = if (!isDarkMode) Color(0xFFFFB26B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Switch(
+                        checked = isDarkMode,
+                        onCheckedChange = onThemeChanged
+                    )
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Icon(
+                        imageVector = Icons.Default.NightsStay,
+                        contentDescription = "Dark Mode",
+                        tint = if (isDarkMode) Color(0xFFA874FF) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(48.dp))
 
         Button(
             onClick = {
