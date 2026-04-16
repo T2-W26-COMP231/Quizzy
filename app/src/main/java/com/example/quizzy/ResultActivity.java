@@ -39,18 +39,24 @@ public class ResultActivity extends AppCompatActivity {
     private TextView tvFinalScore;
     private TextView tvResultMessage;
     private Button btnBackToDashboard;
+    private View resultRoot;
+    private boolean isDarkMode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_result);
 
+        resultRoot = findViewById(R.id.resultRoot);
         achievementsContainer = findViewById(R.id.achievementsContainer);
         tvResultTitle = findViewById(R.id.tvResultTitle);
         tvFinalScore = findViewById(R.id.tvFinalScore);
         tvResultMessage = findViewById(R.id.tvResultMessage);
         btnBackToDashboard = findViewById(R.id.btnBackToDashboard);
         sessionManager = new SessionManager(this);
+        isDarkMode = sessionManager.isDarkMode();
+
+        applyTheme();
 
         int score = getIntent().getIntExtra("score", 0);
         int totalQuestions = getIntent().getIntExtra("totalQuestions", 0);
@@ -79,6 +85,17 @@ public class ResultActivity extends AppCompatActivity {
 
         // Sync score and fetch new badges from backend
         syncScoreAndFetchNewBadges(score, totalQuestions);
+    }
+
+    private void applyTheme() {
+        if (isDarkMode) {
+            if (resultRoot != null) {
+                resultRoot.setBackgroundColor(Color.parseColor("#121212"));
+            }
+            if (tvResultTitle != null) tvResultTitle.setTextColor(Color.WHITE);
+            if (tvFinalScore != null) tvFinalScore.setTextColor(Color.WHITE);
+            if (tvResultMessage != null) tvResultMessage.setTextColor(Color.LTGRAY);
+        }
     }
 
     private void saveTotalScore(int latestQuizScore) {
@@ -188,10 +205,18 @@ public class ResultActivity extends AppCompatActivity {
         cardView.setUseCompatPadding(true);
 
         // Gradient Background for the card
-        GradientDrawable gradient = new GradientDrawable(
-                GradientDrawable.Orientation.TL_BR,
-                new int[]{Color.parseColor("#FFFFFF"), Color.parseColor("#F5F0FF")}
-        );
+        GradientDrawable gradient;
+        if (isDarkMode) {
+            gradient = new GradientDrawable(
+                    GradientDrawable.Orientation.TL_BR,
+                    new int[]{Color.parseColor("#2C2C2C"), Color.parseColor("#1E1E1E")}
+            );
+        } else {
+            gradient = new GradientDrawable(
+                    GradientDrawable.Orientation.TL_BR,
+                    new int[]{Color.parseColor("#FFFFFF"), Color.parseColor("#F5F0FF")}
+            );
+        }
         gradient.setCornerRadius(32f);
         cardView.setBackground(gradient);
 
@@ -217,13 +242,21 @@ public class ResultActivity extends AppCompatActivity {
         TextView tvName = new TextView(this);
         tvName.setText(badge.getName());
         tvName.setTextSize(22f);
-        tvName.setTextColor(Color.parseColor("#4A148C")); // Deep Purple
+        if (isDarkMode) {
+            tvName.setTextColor(Color.parseColor("#D1C4E9")); // Light Purple
+        } else {
+            tvName.setTextColor(Color.parseColor("#4A148C")); // Deep Purple
+        }
         tvName.setTypeface(null, Typeface.BOLD);
 
         TextView tvDesc = new TextView(this);
         tvDesc.setText(badge.getDescription());
         tvDesc.setTextSize(16f);
-        tvDesc.setTextColor(Color.parseColor("#6A1B9A"));
+        if (isDarkMode) {
+            tvDesc.setTextColor(Color.LTGRAY);
+        } else {
+            tvDesc.setTextColor(Color.parseColor("#6A1B9A"));
+        }
         tvDesc.setPadding(0, 8, 0, 0);
 
         textLayout.addView(tvName);
@@ -264,7 +297,11 @@ public class ResultActivity extends AppCompatActivity {
         TextView message = new TextView(this);
         message.setText("Great effort! You didn't unlock any new badges this time, but keep practicing to reach the next milestone.");
         message.setTextSize(18f);
-        message.setTextColor(Color.parseColor("#7B1FA2"));
+        if (isDarkMode) {
+            message.setTextColor(Color.LTGRAY);
+        } else {
+            message.setTextColor(Color.parseColor("#7B1FA2"));
+        }
         message.setGravity(Gravity.CENTER);
         message.setPadding(40, 60, 40, 0);
         message.setLineSpacing(0, 1.2f);

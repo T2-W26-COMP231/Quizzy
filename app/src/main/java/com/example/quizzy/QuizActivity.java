@@ -1,5 +1,6 @@
 package com.example.quizzy;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -25,21 +26,26 @@ public class QuizActivity extends AppCompatActivity {
     private RadioButton option1, option2, option3, option4;
     private Button btnSubmit, btnNext;
     private ProgressBar progressBar;
-    private MaterialCardView feedbackCard;
+    private MaterialCardView feedbackCard, questionCard;
+    private View quizRoot;
 
     private List<Question> questionList;
     private int currentQuestionIndex = 0;
     private int score = 0;
     private boolean answered = false;
     private int gradeLevel;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_quiz);
 
+        sessionManager = new SessionManager(this);
+
         gradeLevel = getIntent().getIntExtra("GRADE_LEVEL", 3);
 
+        quizRoot = findViewById(R.id.quizRoot);
         tvQuestionNumber = findViewById(R.id.tvQuestionNumber);
         tvQuestion = findViewById(R.id.tvQuestion);
         tvScore = findViewById(R.id.tvScore);
@@ -53,6 +59,9 @@ public class QuizActivity extends AppCompatActivity {
         btnNext = findViewById(R.id.btnNext);
         progressBar = findViewById(R.id.progressBar);
         feedbackCard = findViewById(R.id.feedbackCard);
+        questionCard = findViewById(R.id.questionCard);
+
+        applyTheme();
 
         questionList = QuizRepository.currentQuizQuestions;
 
@@ -77,6 +86,31 @@ public class QuizActivity extends AppCompatActivity {
                 openResultsScreen();
             }
         });
+    }
+
+    private void applyTheme() {
+        if (sessionManager.isDarkMode()) {
+            if (quizRoot != null) {
+                quizRoot.setBackgroundColor(Color.parseColor("#121212"));
+            }
+
+            int textColor = Color.WHITE;
+            tvQuestionNumber.setTextColor(textColor);
+            
+            if (questionCard != null) {
+                questionCard.setCardBackgroundColor(Color.parseColor("#1E1E1E"));
+                questionCard.setStrokeWidth(0);
+            }
+            tvQuestion.setTextColor(textColor);
+
+            option1.setTextColor(textColor);
+            option2.setTextColor(textColor);
+            option3.setTextColor(textColor);
+            option4.setTextColor(textColor);
+
+            // Button and progress bar usually look fine with primary colors, 
+            // but we could adjust them if needed.
+        }
     }
 
     private void showQuestion() {

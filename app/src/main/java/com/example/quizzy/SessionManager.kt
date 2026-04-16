@@ -2,8 +2,9 @@ package com.example.quizzy
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Configuration
 
-class SessionManager(context: Context) {
+class SessionManager(private val context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("QuizzyPrefs", Context.MODE_PRIVATE)
 
@@ -35,6 +36,20 @@ class SessionManager(context: Context) {
 
     fun getSelectedDisplay(): String? {
         return prefs.getString("SELECTED_DISPLAY", null)
+    }
+
+    fun setThemeMode(isDarkMode: Boolean) {
+        prefs.edit().putBoolean("IS_DARK_MODE", isDarkMode).apply()
+    }
+
+    fun isDarkMode(): Boolean {
+        val systemInDarkTheme = (context.resources.configuration.uiMode and 
+                Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        return prefs.getBoolean("IS_DARK_MODE", systemInDarkTheme)
+    }
+
+    fun isDarkMode(systemInDarkTheme: Boolean): Boolean {
+        return prefs.getBoolean("IS_DARK_MODE", systemInDarkTheme)
     }
 
     fun logout() {

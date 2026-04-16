@@ -8,15 +8,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.quizzy.ui.theme.QuizzyTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -49,18 +48,18 @@ class InstructionsActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val gradeLevel = intent.getIntExtra("GRADE_LEVEL", 3)
+        val sessionManager = SessionManager(this)
 
         setContent {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    InstructionsScreen(
-                        gradeLevel = gradeLevel,
-                        onBackClick = { finish() }
-                    )
-                }
+            val systemInDarkTheme = isSystemInDarkTheme()
+            val isDarkMode = sessionManager.isDarkMode(systemInDarkTheme)
+
+            QuizzyTheme(darkTheme = isDarkMode) {
+                InstructionsScreen(
+                    gradeLevel = gradeLevel,
+                    isDarkMode = isDarkMode,
+                    onBackClick = { finish() }
+                )
             }
         }
     }
@@ -75,6 +74,7 @@ data class DisplayQuestion(
 @Composable
 fun InstructionsScreen(
     gradeLevel: Int,
+    isDarkMode: Boolean,
     onBackClick: () -> Unit
 ) {
     var isLoading by remember { mutableStateOf(true) }
@@ -130,10 +130,13 @@ fun InstructionsScreen(
         }
     }
 
+    val backgroundColor = if (isDarkMode) Color(0xFF121212) else Color(0xFFFFFBF2)
+    val textColor = if (isDarkMode) Color.White else Color(0xFF5A4A3B)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFFBF2))
+            .background(backgroundColor)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(20.dp)
@@ -142,7 +145,7 @@ fun InstructionsScreen(
             text = "← Back",
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF5A4A3B),
+            color = textColor,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .clickable { onBackClick() }
