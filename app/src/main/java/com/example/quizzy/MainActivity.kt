@@ -1391,22 +1391,28 @@ fun SettingsScreen(
     val sessionManager = remember { SessionManager(context) }
 
     val prefs = context.getSharedPreferences("quizzy_settings", Context.MODE_PRIVATE)
+
     var volume by remember {
         mutableStateOf(prefs.getFloat("music_volume", 0.2f))
+    }
+
+    var sfxVolume by remember {
+        mutableStateOf(prefs.getFloat("sfx_volume", 0.7f))
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color(0xFFFFFBF2))
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
         Text(
             text = "Settings",
             fontSize = 32.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onBackground
+            color = Color(0xFF5A4A3B)
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -1414,20 +1420,20 @@ fun SettingsScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = Color.White,
             shadowElevation = 4.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
                     text = "Logged in as:",
                     fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color(0xFF7B6A58)
                 )
                 Text(
                     text = sessionManager.getUsername() ?: "Guest",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color(0xFF5A4A3B)
                 )
             }
         }
@@ -1437,15 +1443,16 @@ fun SettingsScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = Color.White,
             shadowElevation = 4.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
+
                 Text(
                     text = "Music Volume",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color(0xFF5A4A3B)
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1463,7 +1470,7 @@ fun SettingsScreen(
                 Text(
                     text = "${(volume * 100).toInt()}%",
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color(0xFF7B6A58)
                 )
             }
         }
@@ -1473,13 +1480,50 @@ fun SettingsScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = Color.White,
+            shadowElevation = 4.dp
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+
+                Text(
+                    text = "Sound Effects Volume",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF5A4A3B)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                androidx.compose.material3.Slider(
+                    value = sfxVolume,
+                    onValueChange = { newVolume ->
+                        sfxVolume = newVolume
+                        MusicManager.setSFXVolume(context, newVolume)
+                        prefs.edit().putFloat("sfx_volume", newVolume).apply()
+                    },
+                    valueRange = 0f..1f
+                )
+
+                Text(
+                    text = "${(sfxVolume * 100).toInt()}%",
+                    fontSize = 14.sp,
+                    color = Color(0xFF7B6A58)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
             shadowElevation = 4.dp
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(24.dp)
+                    .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -1487,7 +1531,7 @@ fun SettingsScreen(
                     text = "Dark Mode",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color(0xFF5A4A3B)
                 )
 
                 Switch(
@@ -1502,10 +1546,9 @@ fun SettingsScreen(
         Button(
             onClick = {
                 sessionManager.logout()
-                val loginIntent = Intent(context, LoginActivity::class.java)
-                loginIntent.flags =
-                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                context.startActivity(loginIntent)
+                val intent = Intent(context, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                context.startActivity(intent)
             },
             modifier = Modifier
                 .fillMaxWidth()
