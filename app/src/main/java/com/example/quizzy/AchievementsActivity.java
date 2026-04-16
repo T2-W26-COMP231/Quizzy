@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -101,14 +102,31 @@ public class AchievementsActivity extends AppCompatActivity {
 
     private void applyTheme() {
         if (isDarkMode) {
-            View root = findViewById(R.id.achievementsRoot); // assuming R.id.achievementsRoot exists, or use parent
-            if (root == null) root = (View) achievementsContainer.getParent();
+            View root = findViewById(R.id.achievementsRoot);
             if (root != null) root.setBackgroundColor(Color.parseColor("#121212"));
+            
             achievementsContainer.setBackgroundColor(Color.parseColor("#121212"));
             
             TextView title = findViewById(R.id.tvAchievementsTitle);
             if (title != null) title.setTextColor(Color.WHITE);
+
+            View filterSpace = findViewById(R.id.filterSpace);
+            if (filterSpace != null) filterSpace.setBackgroundColor(Color.parseColor("#1E1E1E"));
+
+            View bottomNav = findViewById(R.id.bottomNavContainer);
+            if (bottomNav != null) {
+                GradientDrawable shape = new GradientDrawable();
+                shape.setShape(GradientDrawable.RECTANGLE);
+                shape.setCornerRadius(dpToPx(28));
+                shape.setColor(Color.parseColor("#1E1E1E"));
+                bottomNav.setBackground(shape);
+            }
         }
+    }
+
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round((float) dp * density);
     }
 
     private SharedPreferences getNavPrefs() {
