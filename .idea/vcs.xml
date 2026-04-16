@@ -3,6 +3,5 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/Quizzy" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/quizzy-backend" vcs="Git" />
   </component>
 </project>
