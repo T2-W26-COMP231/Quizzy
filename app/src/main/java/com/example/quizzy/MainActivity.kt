@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -1101,71 +1102,97 @@ fun GuardianBarChartView(sessions: List<GuardianQuizSession>) {
     val chartTextColor = Color(0xFF5A4A3B).toArgb()
     val chartGridColor = Color(0xFFE6DED0).toArgb()
 
-    AndroidView(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(320.dp),
-        factory = { context ->
-            BarChart(context).apply {
-                layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                description.isEnabled = false
-                setTouchEnabled(true)
-                setPinchZoom(false)
-                setScaleEnabled(false)
-                legend.isEnabled = false
-                axisRight.isEnabled = false
-                setNoDataText("No chart data available")
-                setNoDataTextColor(chartTextColor)
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(300.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Score",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF5A4A3B),
+                modifier = Modifier
+                    .graphicsLayer { rotationZ = -90f }
+                    .padding(bottom = 8.dp)
+            )
 
-                setExtraOffsets(12f, 12f, 12f, 12f)
+            AndroidView(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                factory = { context ->
+                    BarChart(context).apply {
+                        layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                        description.isEnabled = false
+                        setTouchEnabled(true)
+                        setPinchZoom(false)
+                        setScaleEnabled(false)
+                        legend.isEnabled = false
+                        axisRight.isEnabled = false
+                        setNoDataText("No chart data available")
+                        setNoDataTextColor(chartTextColor)
 
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    granularity = 1f
-                    isGranularityEnabled = true
-                    textColor = chartTextColor
-                    textSize = 11f
-                    setDrawGridLines(false)
-                    labelRotationAngle = -20f
-                    valueFormatter =
-                        object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                            override fun getFormattedValue(value: Float): String {
-                                val index = value.toInt()
-                                return if (index in xLabels.indices) xLabels[index] else ""
-                            }
+                        setExtraOffsets(12f, 12f, 12f, 12f)
+
+                        xAxis.apply {
+                            position = XAxis.XAxisPosition.BOTTOM
+                            granularity = 1f
+                            isGranularityEnabled = true
+                            textColor = chartTextColor
+                            textSize = 11f
+                            setDrawGridLines(false)
+                            labelRotationAngle = -20f
+                            valueFormatter =
+                                object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                                    override fun getFormattedValue(value: Float): String {
+                                        val index = value.toInt()
+                                        return if (index in xLabels.indices) xLabels[index] else ""
+                                    }
+                                }
                         }
-                }
 
-                axisLeft.apply {
-                    axisMinimum = 0f
-                    granularity = 1f
-                    textColor = chartTextColor
-                    textSize = 11f
-                    gridColor = chartGridColor
-                    axisLineColor = chartGridColor
-                }
-            }
-        },
-        update = { chart ->
-            val dataSet = BarDataSet(entries, "Quiz Scores").apply {
-                color = chartBarColor
-                valueTextColor = chartTextColor
-                valueTextSize = 11f
-                setDrawValues(true)
-                valueFormatter =
-                    object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                        override fun getFormattedValue(value: Float): String {
-                            return value.toInt().toString()
+                        axisLeft.apply {
+                            axisMinimum = 0f
+                            granularity = 1f
+                            textColor = chartTextColor
+                            textSize = 11f
+                            gridColor = chartGridColor
+                            axisLineColor = chartGridColor
                         }
                     }
-            }
+                },
+                update = { chart ->
+                    val dataSet = BarDataSet(entries, "Quiz Scores").apply {
+                        color = chartBarColor
+                        valueTextColor = chartTextColor
+                        valueTextSize = 11f
+                        setDrawValues(true)
+                        valueFormatter =
+                            object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                                override fun getFormattedValue(value: Float): String {
+                                    return value.toInt().toString()
+                                }
+                            }
+                    }
 
-            chart.data = BarData(dataSet).apply {
-                barWidth = 0.6f
-            }
-            chart.invalidate()
+                    chart.data = BarData(dataSet).apply {
+                        barWidth = 0.6f
+                    }
+                    chart.invalidate()
+                }
+            )
         }
-    )
+
+        Text(
+            text = "Date",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF5A4A3B),
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
 }
 
 @Composable
@@ -1247,72 +1274,98 @@ fun GuardianLineChartView(sessions: List<GuardianQuizSession>) {
     val chartTextColor = Color(0xFF5A4A3B).toArgb()
     val chartGridColor = Color(0xFFE6DED0).toArgb()
 
-    AndroidView(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(320.dp),
-        factory = { context ->
-            LineChart(context).apply {
-                layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                description.isEnabled = false
-                setTouchEnabled(true)
-                setPinchZoom(false)
-                setScaleEnabled(false)
-                legend.isEnabled = false
-                axisRight.isEnabled = false
-                setNoDataText("No chart data available")
-                setNoDataTextColor(chartTextColor)
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(300.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Score",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF5A4A3B),
+                modifier = Modifier
+                    .graphicsLayer { rotationZ = -90f }
+                    .padding(bottom = 8.dp)
+            )
 
-                setExtraOffsets(12f, 12f, 12f, 12f)
+            AndroidView(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                factory = { context ->
+                    LineChart(context).apply {
+                        layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                        description.isEnabled = false
+                        setTouchEnabled(true)
+                        setPinchZoom(false)
+                        setScaleEnabled(false)
+                        legend.isEnabled = false
+                        axisRight.isEnabled = false
+                        setNoDataText("No chart data available")
+                        setNoDataTextColor(chartTextColor)
 
-                xAxis.apply {
-                    position = XAxis.XAxisPosition.BOTTOM
-                    granularity = 1f
-                    isGranularityEnabled = true
-                    textColor = chartTextColor
-                    textSize = 11f
-                    setDrawGridLines(false)
-                    labelRotationAngle = -20f
-                    valueFormatter =
-                        object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                            override fun getFormattedValue(value: Float): String {
-                                val index = value.toInt()
-                                return if (index in xLabels.indices) xLabels[index] else ""
-                            }
+                        setExtraOffsets(12f, 12f, 12f, 12f)
+
+                        xAxis.apply {
+                            position = XAxis.XAxisPosition.BOTTOM
+                            granularity = 1f
+                            isGranularityEnabled = true
+                            textColor = chartTextColor
+                            textSize = 11f
+                            setDrawGridLines(false)
+                            labelRotationAngle = -20f
+                            valueFormatter =
+                                object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                                    override fun getFormattedValue(value: Float): String {
+                                        val index = value.toInt()
+                                        return if (index in xLabels.indices) xLabels[index] else ""
+                                    }
+                                }
                         }
-                }
 
-                axisLeft.apply {
-                    axisMinimum = 0f
-                    granularity = 1f
-                    textColor = chartTextColor
-                    textSize = 11f
-                    gridColor = chartGridColor
-                    axisLineColor = chartGridColor
-                }
-            }
-        },
-        update = { chart ->
-            val dataSet = LineDataSet(entries, "Quiz Scores").apply {
-                color = chartLineColor
-                setCircleColor(chartLineColor)
-                circleRadius = 5f
-                lineWidth = 2.5f
-                valueTextColor = chartTextColor
-                valueTextSize = 11f
-                setDrawFilled(false)
-                mode = LineDataSet.Mode.LINEAR
-                setDrawValues(true)
-                valueTypeface = Typeface.DEFAULT_BOLD
-            }
+                        axisLeft.apply {
+                            axisMinimum = 0f
+                            granularity = 1f
+                            textColor = chartTextColor
+                            textSize = 11f
+                            gridColor = chartGridColor
+                            axisLineColor = chartGridColor
+                        }
+                    }
+                },
+                update = { chart ->
+                    val dataSet = LineDataSet(entries, "Quiz Scores").apply {
+                        color = chartLineColor
+                        setCircleColor(chartLineColor)
+                        circleRadius = 5f
+                        lineWidth = 2.5f
+                        valueTextColor = chartTextColor
+                        valueTextSize = 11f
+                        setDrawFilled(false)
+                        mode = LineDataSet.Mode.LINEAR
+                        setDrawValues(true)
+                        valueTypeface = Typeface.DEFAULT_BOLD
+                    }
 
-            chart.data = LineData(dataSet)
-            chart.xAxis.axisMaximum =
-                (if (entries.isEmpty()) 0f else (entries.size - 1).toFloat()) + 0.2f
-            chart.xAxis.axisMinimum = -0.2f
-            chart.invalidate()
+                    chart.data = LineData(dataSet)
+                    chart.xAxis.axisMaximum =
+                        (if (entries.isEmpty()) 0f else (entries.size - 1).toFloat()) + 0.2f
+                    chart.xAxis.axisMinimum = -0.2f
+                    chart.invalidate()
+                }
+            )
         }
-    )
+
+        Text(
+            text = "Date",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF5A4A3B),
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
 }
 
 @Composable
