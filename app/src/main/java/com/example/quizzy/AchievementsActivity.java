@@ -1,6 +1,7 @@
 package com.example.quizzy;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -14,8 +15,11 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
 import java.util.List;
-
 public class AchievementsActivity extends AppCompatActivity {
+
+    private static final String NAV_PREFS = "quizzy_navigation_state";
+    private static final String KEY_LAST_MAIN_SCREEN = "last_main_screen";
+    private static final String KEY_ACHIEVEMENTS_FILTER = "achievements_filter";
 
     private LinearLayout achievementsContainer;
     private SessionManager sessionManager;
@@ -31,9 +35,11 @@ public class AchievementsActivity extends AppCompatActivity {
         achievementsContainer = findViewById(R.id.achievementsContainer);
         sessionManager = new SessionManager(this);
 
-        sessionManager.saveSelectedDisplay("Achievements");
+        selectedFilter = getSavedAchievementsFilter();
 
         findViewById(R.id.navHome).setOnClickListener(v -> {
+            saveLastMainScreen("Home");
+
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Home");
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -46,7 +52,7 @@ public class AchievementsActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.navGuardian).setOnClickListener(v -> {
-            sessionManager.saveSelectedDisplay("Latest Activity");
+            saveLastMainScreen("Guardian");
 
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Guardian");
@@ -56,6 +62,8 @@ public class AchievementsActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.navSettings).setOnClickListener(v -> {
+            saveLastMainScreen("Settings");
+
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("start_screen", "Settings");
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -87,6 +95,22 @@ public class AchievementsActivity extends AppCompatActivity {
         });
     }
 
+    private SharedPreferences getNavPrefs() {
+        return getSharedPreferences(NAV_PREFS, MODE_PRIVATE);
+    }
+
+    private void saveLastMainScreen(String screen) {
+        getNavPrefs().edit().putString(KEY_LAST_MAIN_SCREEN, screen).apply();
+    }
+
+    private void saveAchievementsFilter(String filter) {
+        getNavPrefs().edit().putString(KEY_ACHIEVEMENTS_FILTER, filter).apply();
+    }
+
+    private String getSavedAchievementsFilter() {
+        return getNavPrefs().getString(KEY_ACHIEVEMENTS_FILTER, "All");
+    }
+
     private void showError(String message) {
         achievementsContainer.removeAllViews();
 
@@ -108,6 +132,7 @@ public class AchievementsActivity extends AppCompatActivity {
 
         if (filteredBadges.isEmpty()) {
             TextView empty = new TextView(this);
+
             if ("Unlocked".equals(selectedFilter)) {
                 empty.setText("No unlocked badges found.");
             } else if ("Locked".equals(selectedFilter)) {
@@ -115,10 +140,12 @@ public class AchievementsActivity extends AppCompatActivity {
             } else {
                 empty.setText("No badges available yet.");
             }
+
             empty.setTextSize(22f);
             empty.setTextColor(Color.parseColor("#6E6257"));
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, 100, 0, 0);
+
             achievementsContainer.addView(empty);
             return;
         }
@@ -213,6 +240,7 @@ public class AchievementsActivity extends AppCompatActivity {
 
             popupMenu.setOnMenuItemClickListener(item -> {
                 selectedFilter = item.getTitle().toString();
+                saveAchievementsFilter(selectedFilter);
                 showBadges();
                 return true;
             });
