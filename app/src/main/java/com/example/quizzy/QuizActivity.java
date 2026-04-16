@@ -1,4 +1,5 @@
 package com.example.quizzy;
+
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -19,8 +20,14 @@ import com.google.android.material.snackbar.Snackbar;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Activity that manages the execution of a quiz session.
+ * It displays questions one by one, validates user answers, tracks the score, 
+ * and provides visual feedback for each attempt.
+ */
 public class QuizActivity extends AppCompatActivity {
 
+    // UI Components
     private TextView tvQuestionNumber, tvQuestion, tvScore, tvFeedback;
     private RadioGroup radioGroup;
     private RadioButton option1, option2, option3, option4;
@@ -29,6 +36,7 @@ public class QuizActivity extends AppCompatActivity {
     private MaterialCardView feedbackCard, questionCard;
     private View quizRoot;
 
+    // Session State
     private List<Question> questionList;
     private int currentQuestionIndex = 0;
     private int score = 0;
@@ -36,15 +44,44 @@ public class QuizActivity extends AppCompatActivity {
     private int gradeLevel;
     private SessionManager sessionManager;
 
+    /**
+     * Color constants for dynamic theme application.
+     */
+    private static final String DARK_MODE_BACKGROUND = "#121212";
+    private static final String DARK_MODE_CARD = "#1E1E1E";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_quiz);
 
+        initializeComponents();
+        
         sessionManager = new SessionManager(this);
-
         gradeLevel = getIntent().getIntExtra("GRADE_LEVEL", 3);
 
+        applyTheme();
+
+        // Retrieve questions pre-loaded by InstructionsActivity
+        questionList = QuizRepository.currentQuizQuestions;
+
+        if (questionList == null || questionList.isEmpty()) {
+            Toast.makeText(this, "No questions available", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        progressBar.setMax(questionList.size());
+        showQuestion();
+
+        btnSubmit.setOnClickListener(v -> validateAnswer());
+        btnNext.setOnClickListener(v -> navigateToNextQuestion());
+    }
+
+    /**
+     * Finds and assigns all UI components from the layout.
+     */
+    private void initializeComponents() {
         quizRoot = findViewById(R.id.quizRoot);
         tvQuestionNumber = findViewById(R.id.tvQuestionNumber);
         tvQuestion = findViewById(R.id.tvQuestion);
@@ -60,45 +97,22 @@ public class QuizActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         feedbackCard = findViewById(R.id.feedbackCard);
         questionCard = findViewById(R.id.questionCard);
-
-        applyTheme();
-
-        questionList = QuizRepository.currentQuizQuestions;
-
-        if (questionList == null || questionList.isEmpty()) {
-            Toast.makeText(this, "No questions available", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
-
-        progressBar.setMax(questionList.size());
-        showQuestion();
-
-        btnSubmit.setOnClickListener(v -> validateAnswer());
-
-        btnNext.setOnClickListener(v -> {
-            currentQuestionIndex++;
-            answered = false;
-
-            if (currentQuestionIndex < questionList.size()) {
-                showQuestion();
-            } else {
-                openResultsScreen();
-            }
-        });
     }
 
+    /**
+     * Adjusts the UI appearance based on the user's dark mode preference.
+     */
     private void applyTheme() {
         if (sessionManager.isDarkMode()) {
             if (quizRoot != null) {
-                quizRoot.setBackgroundColor(Color.parseColor("#121212"));
+                quizRoot.setBackgroundColor(Color.parseColor(DARK_MODE_BACKGROUND));
             }
 
             int textColor = Color.WHITE;
             tvQuestionNumber.setTextColor(textColor);
             
             if (questionCard != null) {
-                questionCard.setCardBackgroundColor(Color.parseColor("#1E1E1E"));
+                questionCard.setCardBackgroundColor(Color.parseColor(DARK_MODE_CARD));
                 questionCard.setStrokeWidth(0);
             }
             tvQuestion.setTextColor(textColor);
@@ -107,12 +121,12 @@ public class QuizActivity extends AppCompatActivity {
             option2.setTextColor(textColor);
             option3.setTextColor(textColor);
             option4.setTextColor(textColor);
-
-            // Button and progress bar usually look fine with primary colors, 
-            // but we could adjust them if needed.
         }
     }
 
+    /**
+     * Updates the UI to display the current question and its options.
+     */
     private void showQuestion() {
         Question currentQuestion = questionList.get(currentQuestionIndex);
 
@@ -139,10 +153,16 @@ public class QuizActivity extends AppCompatActivity {
         btnNext.setVisibility(View.GONE);
     }
 
+    /**
+     * Algorithm: Validates the user's selection against the correct answer.
+     * 1. Checks if an option is selected.
+     * 2. Plays a UI feedback sound.
+     * 3. Compares the selected text with the 'correctAnswer' field.
+     * 4. Updates the score and displays a success/failure card.
+     */
     private void validateAnswer() {
-
         if (answered) return;
-        // play click sound
+        
         MusicManager.INSTANCE.playClickSound(this);
 
         int selectedId = radioGroup.getCheckedRadioButtonId();
@@ -168,7 +188,8 @@ public class QuizActivity extends AppCompatActivity {
                     ContextCompat.getColor(this, android.R.color.holo_green_dark)
             );
         } else {
-            tvFeedback.setText("Wrong. The correct answer was: " + currentQuestion.getCorrectAnswer());
+            String feedbackMsg = "Wrong. The correct answer was: " + currentQuestion.getCorrectAnswer();
+            tvFeedback.setText(feedbackMsg);
             feedbackCard.setCardBackgroundColor(
                     ContextCompat.getColor(this, android.R.color.holo_red_dark)
             );
@@ -179,12 +200,32 @@ public class QuizActivity extends AppCompatActivity {
         btnNext.setVisibility(View.VISIBLE);
     }
 
+    /**
+     * Moves to the next question in the list or finishes the quiz if at the end.
+     */
+    private void navigateToNextQuestion() {
+        currentQuestionIndex++;
+        answered = false;
+
+        if (currentQuestionIndex < questionList.size()) {
+            showQuestion();
+        } else {
+            openResultsScreen();
+        }
+    }
+
+    /**
+     * Helper to enable or disable interaction with the radio group options.
+     */
     private void enableOptions(boolean enable) {
         for (int i = 0; i < radioGroup.getChildCount(); i++) {
             radioGroup.getChildAt(i).setEnabled(enable);
         }
     }
 
+    /**
+     * Calculates achievements and transitions to the results activity.
+     */
     private void openResultsScreen() {
         BadgeManager.checkAndUnlockBadges(this, score, questionList.size(), gradeLevel);
 
