@@ -40,8 +40,27 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-private const val TAG = "QUIZZY_DEBUG"
+/**
+ * Constants for network configuration and UI styling in Instructions screen.
+ */
+private object InstructionsUI {
+    val BackgroundLight = Color(0xFFFFFBF2)
+    val BackgroundDark = Color(0xFF121212)
+    val TextPrimaryLight = Color(0xFF5A4A3B)
+    val ProgressColor = Color(0xFFA874FF)
+    
+    val PaddingScreen = 20.dp
+    val PaddingBackBtn = 8.dp
+    
+    const val TAG = "QUIZZY_DEBUG"
+    const val BACKEND_BASE_URL = "http://10.0.2.2:3000/api"
+    const val TIMEOUT_MILLIS = 15000
+}
 
+/**
+ * Intermediate Activity that handles AI quiz generation and setup before the quiz begins.
+ * It fetches instruction text and triggers the backend to generate questions based on the grade level.
+ */
 class InstructionsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,12 +84,24 @@ class InstructionsActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Internal data model for questions received from the AI generation service.
+ */
 data class DisplayQuestion(
     val questionText: String,
     val options: List<String>,
     val correctAnswer: String
 )
 
+/**
+ * Main screen for the Instructions Activity.
+ * Displays a loading indicator while the AI generates the quiz.
+ * 
+ * Logic flow:
+ * 1. Build a prompt based on the selected grade level.
+ * 2. Fetch instructions and generated questions from the backend.
+ * 3. Store questions in [QuizRepository] and navigate to [QuizActivity].
+ */
 @Composable
 fun InstructionsScreen(
     gradeLevel: Int,
@@ -87,34 +118,18 @@ fun InstructionsScreen(
         errorMessage = ""
 
         try {
-            val instructionText = fetchInstructionFromBackend(gradeLevel)
-            Log.d(TAG, "Retrieved instruction text: $instructionText")
+            // Optional instruction text (can be shown if UI supports it in future)
+            fetchInstructionFromBackend(gradeLevel)
 
             val prompt = buildPromptForGrade(gradeLevel)
-            Log.d(TAG, "Generated questions prompt: $prompt")
-
             val userId = sessionManager.getUserId().toInt()
-            val quizResponse = fetchGeneratedQuizFromBackend(prompt, userId)
-            val questions = quizResponse.first
-            val sessionId = quizResponse.second
             
-            logQuestionsToConsole(questions)
-
+            val (questions, sessionId) = fetchGeneratedQuizFromBackend(prompt, userId)
+            
             if (questions.isNotEmpty()) {
-                // Map DisplayQuestion to Question (used by QuizActivity)
-                QuizRepository.currentQuizQuestions = questions.map { dq ->
-                    Question(
-                        dq.questionText,
-                        dq.options.getOrNull(0) ?: "",
-                        dq.options.getOrNull(1) ?: "",
-                        dq.options.getOrNull(2) ?: "",
-                        dq.options.getOrNull(3) ?: "",
-                        dq.correctAnswer
-                    )
-                }
-                QuizRepository.currentSessionId = sessionId
-
-                // Navigate to QuizActivity
+                setupQuizSession(questions, sessionId)
+                
+                // Navigate to the actual quiz
                 val intent = Intent(context, QuizActivity::class.java)
                 context.startActivity(intent)
                 (context as? InstructionsActivity)?.finish()
@@ -124,14 +139,14 @@ fun InstructionsScreen(
 
         } catch (e: Exception) {
             errorMessage = "Oops, something went wrong."
-            Log.e(TAG, "Screen load failed", e)
+            Log.e(InstructionsUI.TAG, "Screen load failed", e)
         } finally {
             isLoading = false
         }
     }
 
-    val backgroundColor = if (isDarkMode) Color(0xFF121212) else Color(0xFFFFFBF2)
-    val textColor = if (isDarkMode) Color.White else Color(0xFF5A4A3B)
+    val backgroundColor = if (isDarkMode) InstructionsUI.BackgroundDark else InstructionsUI.BackgroundLight
+    val textColor = if (isDarkMode) Color.White else InstructionsUI.TextPrimaryLight
 
     Box(
         modifier = Modifier
@@ -139,7 +154,7 @@ fun InstructionsScreen(
             .background(backgroundColor)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(20.dp)
+            .padding(InstructionsUI.PaddingScreen)
     ) {
         Text(
             text = "← Back",
@@ -149,13 +164,13 @@ fun InstructionsScreen(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .clickable { onBackClick() }
-                .padding(vertical = 8.dp, horizontal = 4.dp)
+                .padding(vertical = InstructionsUI.PaddingBackBtn, horizontal = 4.dp)
         )
 
         when {
             isLoading -> {
                 CircularProgressIndicator(
-                    color = Color(0xFFA874FF),
+                    color = InstructionsUI.ProgressColor,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
@@ -168,14 +183,31 @@ fun InstructionsScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
-
-            else -> {
-                // intentionally empty
-            }
         }
     }
 }
 
+/**
+ * Maps the raw AI questions to the repository for global access during the quiz.
+ */
+private fun setupQuizSession(questions: List<DisplayQuestion>, sessionId: Long) {
+    QuizRepository.currentQuizQuestions = questions.map { dq ->
+        Question(
+            dq.questionText,
+            dq.options.getOrNull(0) ?: "",
+            dq.options.getOrNull(1) ?: "",
+            dq.options.getOrNull(2) ?: "",
+            dq.options.getOrNull(3) ?: "",
+            dq.correctAnswer
+        )
+    }
+    QuizRepository.currentSessionId = sessionId
+}
+
+/**
+ * Algorithm: Generates a specific natural language prompt for the AI based on the student's grade level.
+ * This ensures the generated math problems are age-appropriate.
+ */
 fun buildPromptForGrade(gradeLevel: Int): String {
     return when (gradeLevel) {
         3 -> "Generate exactly 5 multiple-choice math questions for Grade 3 students. Focus on addition, subtraction, simple multiplication, and basic word problems."
@@ -185,24 +217,22 @@ fun buildPromptForGrade(gradeLevel: Int): String {
     }
 }
 
+/**
+ * Network Call: Retrieves instruction text from the backend.
+ */
 suspend fun fetchInstructionFromBackend(gradeLevel: Int): String {
     return withContext(Dispatchers.IO) {
-        val url = URL("http://10.0.2.2:3000/api/instructions/$gradeLevel")
+        val url = URL("${InstructionsUI.BACKEND_BASE_URL}/instructions/$gradeLevel")
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
-        connection.connectTimeout = 10000
-        connection.readTimeout = 10000
+        connection.connectTimeout = InstructionsUI.TIMEOUT_MILLIS
+        connection.readTimeout = InstructionsUI.TIMEOUT_MILLIS
 
         try {
             val responseCode = connection.responseCode
-            Log.d(TAG, "GET instructions -> $responseCode")
-
             val responseText = readResponseText(connection, responseCode)
-            Log.d(TAG, "Instructions raw: $responseText")
 
-            if (responseCode != 200) {
-                throw Exception("Instructions request failed: $responseCode")
-            }
+            if (responseCode != 200) throw Exception("Request failed: $responseCode")
 
             val json = JSONObject(responseText)
             json.optString("instructionText", "No instructions found.")
@@ -212,26 +242,25 @@ suspend fun fetchInstructionFromBackend(gradeLevel: Int): String {
     }
 }
 
+/**
+ * Network Call: Triggers the AI quiz generation service.
+ * Returns a list of questions and a unique session identifier.
+ */
 suspend fun fetchGeneratedQuizFromBackend(prompt: String, userId: Int): Pair<List<DisplayQuestion>, Long> {
     return withContext(Dispatchers.IO) {
         val encodedPrompt = URLEncoder.encode(prompt, "UTF-8")
-        val url = URL("http://10.0.2.2:3000/api/quiz/generate?prompt=$encodedPrompt&userId=$userId")
+        val url = URL("${InstructionsUI.BACKEND_BASE_URL}/quiz/generate?prompt=$encodedPrompt&userId=$userId")
         val connection = url.openConnection() as HttpURLConnection
 
         connection.requestMethod = "POST"
-        connection.connectTimeout = 15000
-        connection.readTimeout = 15000
+        connection.connectTimeout = InstructionsUI.TIMEOUT_MILLIS
+        connection.readTimeout = InstructionsUI.TIMEOUT_MILLIS
 
         try {
             val responseCode = connection.responseCode
-            Log.d(TAG, "POST quiz/generate -> $responseCode")
-
             val responseText = readResponseText(connection, responseCode)
-            Log.d(TAG, "Quiz raw: $responseText")
 
-            if (responseCode != 200) {
-                throw Exception("Quiz generation failed: $responseCode")
-            }
+            if (responseCode != 200) throw Exception("Quiz generation failed: $responseCode")
 
             val json = JSONObject(responseText)
             val sessionId = json.optLong("sessionId", -1L)
@@ -243,7 +272,10 @@ suspend fun fetchGeneratedQuizFromBackend(prompt: String, userId: Int): Pair<Lis
     }
 }
 
-fun readResponseText(connection: HttpURLConnection, responseCode: Int): String {
+/**
+ * Utility: Reads the input or error stream from a [HttpURLConnection] and returns a String.
+ */
+private fun readResponseText(connection: HttpURLConnection, responseCode: Int): String {
     val stream = if (responseCode in 200..299) {
         connection.inputStream
     } else {
@@ -263,7 +295,11 @@ fun readResponseText(connection: HttpURLConnection, responseCode: Int): String {
     return result.toString()
 }
 
-fun parseQuestions(questionsArray: JSONArray): List<DisplayQuestion> {
+/**
+ * Algorithm: Parses the JSON response from the AI service into a list of [DisplayQuestion] objects.
+ * Handles missing fields and filters out blank options.
+ */
+private fun parseQuestions(questionsArray: JSONArray): List<DisplayQuestion> {
     val questions = mutableListOf<DisplayQuestion>()
 
     for (i in 0 until questionsArray.length()) {
@@ -276,8 +312,7 @@ fun parseQuestions(questionsArray: JSONArray): List<DisplayQuestion> {
         val option4 = questionObject.optString("option4", "")
         val correctAnswer = questionObject.optString("correctAnswer", "N/A")
 
-        val options = listOf(option1, option2, option3, option4)
-            .filter { it.isNotBlank() }
+        val options = listOf(option1, option2, option3, option4).filter { it.isNotBlank() }
 
         questions.add(
             DisplayQuestion(
@@ -289,20 +324,4 @@ fun parseQuestions(questionsArray: JSONArray): List<DisplayQuestion> {
     }
 
     return questions
-}
-
-fun logQuestionsToConsole(questions: List<DisplayQuestion>) {
-    if (questions.isEmpty()) {
-        Log.d(TAG, "No generated questions returned.")
-        return
-    }
-
-    questions.forEachIndexed { index, question ->
-        Log.d(TAG, "Question ${index + 1}: ${question.questionText}")
-        question.options.forEachIndexed { optionIndex, option ->
-            val label = ('A' + optionIndex).toString()
-            Log.d(TAG, "$label. $option")
-        }
-        Log.d(TAG, "Correct Answer: ${question.correctAnswer}")
-    }
 }

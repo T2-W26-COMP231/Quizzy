@@ -5,8 +5,22 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Utility class for processing and formatting achievement-related data for the UI.
+ * This class handles the creation of display models for badges and generates 
+ * user-friendly feedback messages based on quiz performance.
+ */
 public class AchievementProcessor {
 
+    /**
+     * Algorithm: Transforms raw badge data into a list of items optimized for UI display.
+     * 
+     * Main steps:
+     * 1. Create a Set of earned badge IDs for O(1) membership checking.
+     * 2. Iterate through all possible badges.
+     * 3. Determine unlock status and build descriptive status text for each.
+     * 4. Wrap the data into [AchievementDisplayItem] objects.
+     */
     public static List<AchievementDisplayItem> prepareAchievementsForDisplay(
             List<Badges> allBadges,
             List<Badges> earnedBadges,
@@ -42,6 +56,13 @@ public class AchievementProcessor {
         return displayItems;
     }
 
+    /**
+     * Generates an encouraging performance message based on the quiz score percentage.
+     * 
+     * @param score          The number of correct answers.
+     * @param totalQuestions The total number of questions in the quiz.
+     * @return A string containing a human-readable feedback message.
+     */
     public static String getResultMessage(int score, int totalQuestions) {
         if (totalQuestions <= 0) {
             return "Good try!";
@@ -49,6 +70,7 @@ public class AchievementProcessor {
 
         double percent = (score * 100.0) / totalQuestions;
 
+        // Message Logic: Threshold-based feedback
         if (percent == 100.0) {
             return "Amazing! Perfect score!";
         } else if (percent >= 80.0) {
@@ -60,11 +82,16 @@ public class AchievementProcessor {
         }
     }
 
+    /**
+     * Helper to build a localized status description for a badge.
+     * For locked badges, it provides a hint on how to unlock it.
+     */
     private static String buildStatusText(long badgeId, boolean unlocked, int score, int totalQuestions) {
         if (unlocked) {
             return "Unlocked";
         }
 
+        // Logic: Mapping Badge IDs to unlock requirement hints
         switch ((int) badgeId) {
             case 1:
                 return "Complete your first quiz";

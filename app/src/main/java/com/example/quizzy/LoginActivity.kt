@@ -10,10 +10,29 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -27,6 +46,28 @@ import com.example.quizzy.network.NetworkClient
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
+/**
+ * Constants for UI styling in Login screen to avoid magic numbers.
+ */
+private object LoginUI {
+    val BackgroundLight = Color(0xFFFFFBF2)
+    val BackgroundGradientEnd = Color(0xFFF8F5EC)
+    val TextPrimary = Color(0xFF5A4A3B)
+    val TextSecondary = Color(0xFF7B6A58)
+    val PrimaryAction = Color(0xFFA874FF)
+    
+    val CornerRadiusTextField = 16.dp
+    val CornerRadiusButton = 28.dp
+    val PaddingScreen = 24.dp
+    val SpacingMedium = 16.dp
+    val SpacingLarge = 32.dp
+    val ButtonHeight = 56.dp
+}
+
+/**
+ * Activity that handles user authentication, providing both login and registration interfaces.
+ * Automatically redirects to [MainActivity] if a session is already active.
+ */
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,31 +75,41 @@ class LoginActivity : ComponentActivity() {
 
         val sessionManager = SessionManager(this)
         if (sessionManager.isLoggedIn()) {
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+            navigateToMain()
+            return
         }
 
         setContent {
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFFFFFBF2)
+                    color = LoginUI.BackgroundLight
                 ) {
                     LoginRegisterScreen(
-                        onLoginSuccess = {
-                            startActivity(Intent(this, MainActivity::class.java))
-                            finish()
-                        }
+                        onLoginSuccess = { navigateToMain() }
                     )
                 }
             }
         }
     }
+
+    /**
+     * Helper to navigate to main screen and finish login activity.
+     */
+    private fun navigateToMain() {
+        startActivity(Intent(this, MainActivity::class.java))
+        finish()
+    }
 }
 
+/**
+ * A combined screen for Login and Registration.
+ * 
+ * @param onLoginSuccess Callback invoked when the user successfully authenticates.
+ */
 @Composable
 fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
-    var isLogin by remember { mutableStateOf(true) }
+    var isLoginMode by remember { mutableStateOf(true) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -73,46 +124,46 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFFFFFBF2), Color(0xFFF8F5EC))
+                    colors = listOf(LoginUI.BackgroundLight, LoginUI.BackgroundGradientEnd)
                 )
             )
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(24.dp),
+            .padding(LoginUI.PaddingScreen),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = if (isLogin) "Welcome Back!" else "Create Account",
+            text = if (isLoginMode) "Welcome Back!" else "Create Account",
             fontSize = 32.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF5A4A3B)
+            color = LoginUI.TextPrimary
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(LoginUI.SpacingLarge))
 
         OutlinedTextField(
             value = username,
             onValueChange = { username = it },
             label = { Text("Username") },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(LoginUI.CornerRadiusTextField),
             singleLine = true
         )
 
-        if (!isLogin) {
-            Spacer(modifier = Modifier.height(16.dp))
+        if (!isLoginMode) {
+            Spacer(modifier = Modifier.height(LoginUI.SpacingMedium))
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
                 label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(LoginUI.CornerRadiusTextField),
                 singleLine = true
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(LoginUI.SpacingMedium))
 
         OutlinedTextField(
             value = password,
@@ -120,14 +171,14 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
             label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(LoginUI.CornerRadiusTextField),
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(LoginUI.SpacingLarge))
 
         if (isLoading) {
-            CircularProgressIndicator(color = Color(0xFFA874FF))
+            CircularProgressIndicator(color = LoginUI.PrimaryAction)
         } else {
             Button(
                 onClick = {
@@ -135,7 +186,7 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
                         Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    if (!isLogin) {
+                    if (!isLoginMode) {
                         if (email.isBlank()) {
                             Toast.makeText(context, "Email is required", Toast.LENGTH_SHORT).show()
                             return@Button
@@ -147,69 +198,28 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
                     }
                     scope.launch {
                         isLoading = true
-                        try {
-                            val endpoint = if (isLogin) "/users/login" else "/users/register"
-                            val body = JSONObject().apply {
-                                put("username", username)
-                                put("password", password)
-                                if (!isLogin) {
-                                    put("email", email)
-                                    put("role", "STUDENT")
-                                }
-                            }
-
-                            val result = NetworkClient.post(endpoint, body)
-                            result.fold(
-                                onSuccess = { json ->
-                                    val id = json.optLong("userId", -1L).takeIf { it != -1L } ?: json.optLong("id", -1L)
-                                    val user = json.optString("username", username)
-                                    sessionManager.saveUser(id, user)
-                                    onLoginSuccess()
-                                },
-                                onFailure = { e ->
-                                    val errorMessage = e.message ?: "An error occurred"
-                                    val displayMessage = when {
-                                        errorMessage.contains("account doesn't exist", ignoreCase = true) -> "This account doesn't exist"
-                                        errorMessage.contains("username already exists", ignoreCase = true) -> "This username already exists"
-                                        errorMessage.contains("email already exists", ignoreCase = true) -> "This email already exists"
-                                        errorMessage.contains("Incorrect password", ignoreCase = true) -> "Incorrect password"
-                                        errorMessage.startsWith("Error 401:") -> {
-                                            try {
-                                                val jsonError = JSONObject(errorMessage.substringAfter("Error 401: "))
-                                                jsonError.optString("error", "This account doesn't exist")
-                                            } catch (je: Exception) {
-                                                "This account doesn't exist"
-                                            }
-                                        }
-                                        errorMessage.startsWith("Error 400:") -> {
-                                            try {
-                                                val jsonError = JSONObject(errorMessage.substringAfter("Error 400: "))
-                                                jsonError.optString("error", errorMessage)
-                                            } catch (je: Exception) {
-                                                errorMessage
-                                            }
-                                        }
-                                        else -> errorMessage
-                                    }
-                                    Toast.makeText(context, displayMessage, Toast.LENGTH_LONG).show()
-                                    Log.e("LOGIN", "Error: $errorMessage", e)
-                                }
-                            )
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "An error occurred", Toast.LENGTH_SHORT).show()
-                        } finally {
-                            isLoading = false
-                        }
+                        handleAuthentication(
+                            isLogin = isLoginMode,
+                            username = username,
+                            password = password,
+                            email = email,
+                            sessionManager = sessionManager,
+                            onSuccess = onLoginSuccess,
+                            onFailure = { msg ->
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            },
+                            onFinally = { isLoading = false }
+                        )
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFA874FF))
+                    .height(LoginUI.ButtonHeight),
+                shape = RoundedCornerShape(LoginUI.CornerRadiusButton),
+                colors = ButtonDefaults.buttonColors(containerColor = LoginUI.PrimaryAction)
             ) {
                 Text(
-                    text = if (isLogin) "LOGIN" else "REGISTER",
+                    text = if (isLoginMode) "LOGIN" else "REGISTER",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -220,10 +230,85 @@ fun LoginRegisterScreen(onLoginSuccess: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = if (isLogin) "Don't have an account? Register" else "Already have an account? Login",
-            color = Color(0xFF7B6A58),
+            text = if (isLoginMode) "Don't have an account? Register" else "Already have an account? Login",
+            color = LoginUI.TextSecondary,
             fontWeight = FontWeight.Medium,
-            modifier = Modifier.clickable { isLogin = !isLogin }
+            modifier = Modifier.clickable { isLoginMode = !isLoginMode }
         )
+    }
+}
+
+/**
+ * Handles the network call for login or registration.
+ * 
+ * Algorithm:
+ * 1. Build JSON payload based on auth mode.
+ * 2. Send POST request to appropriate endpoint.
+ * 3. On success: Parse user ID and name, then save to session.
+ * 4. On failure: Map raw error messages to user-friendly strings.
+ */
+private suspend fun handleAuthentication(
+    isLogin: Boolean,
+    username: String,
+    password: String,
+    email: String,
+    sessionManager: SessionManager,
+    onSuccess: () -> Unit,
+    onFailure: (String) -> Unit,
+    onFinally: () -> Unit
+) {
+    try {
+        val endpoint = if (isLogin) "/users/login" else "/users/register"
+        val body = JSONObject().apply {
+            put("username", username)
+            put("password", password)
+            if (!isLogin) {
+                put("email", email)
+                put("role", "STUDENT")
+            }
+        }
+
+        val result = NetworkClient.post(endpoint, body)
+        result.fold(
+            onSuccess = { json ->
+                val id = json.optLong("userId", -1L).takeIf { it != -1L } ?: json.optLong("id", -1L)
+                val user = json.optString("username", username)
+                sessionManager.saveUser(id, user)
+                onSuccess()
+            },
+            onFailure = { e ->
+                val errorMessage = e.message ?: "An error occurred"
+                onFailure(mapErrorMessage(errorMessage))
+                Log.e("LOGIN", "Auth Error: $errorMessage", e)
+            }
+        )
+    } catch (e: Exception) {
+        onFailure("An error occurred")
+    } finally {
+        onFinally()
+    }
+}
+
+/**
+ * Maps technical error messages from the backend to localized, human-readable strings.
+ */
+private fun mapErrorMessage(errorMessage: String): String {
+    return when {
+        errorMessage.contains("account doesn't exist", ignoreCase = true) -> "This account doesn't exist"
+        errorMessage.contains("username already exists", ignoreCase = true) -> "This username already exists"
+        errorMessage.contains("email already exists", ignoreCase = true) -> "This email already exists"
+        errorMessage.contains("Incorrect password", ignoreCase = true) -> "Incorrect password"
+        errorMessage.startsWith("Error 401:") -> parseJsonError(errorMessage, "Error 401: ", "This account doesn't exist")
+        errorMessage.startsWith("Error 400:") -> parseJsonError(errorMessage, "Error 400: ", errorMessage)
+        else -> errorMessage
+    }
+}
+
+private fun parseJsonError(message: String, prefix: String, default: String): String {
+    return try {
+        val jsonError = JSONObject(message.substringAfter(prefix))
+        jsonError.optString("error", default)
+    } catch (je: Exception) {
+        default
     }
 }

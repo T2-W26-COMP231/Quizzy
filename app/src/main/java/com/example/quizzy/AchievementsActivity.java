@@ -16,16 +16,30 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
 import java.util.List;
+
+/**
+ * Activity that displays all achievement badges available in the application.
+ * It allows users to view their progress, filtering between earned (unlocked) 
+ * and pending (locked) milestones.
+ */
 public class AchievementsActivity extends AppCompatActivity {
 
+    // Storage Keys
     private static final String NAV_PREFS = "quizzy_navigation_state";
     private static final String KEY_LAST_MAIN_SCREEN = "last_main_screen";
     private static final String KEY_ACHIEVEMENTS_FILTER = "achievements_filter";
 
+    // Theme Colors
+    private static final String DARK_MODE_BG = "#121212";
+    private static final String DARK_MODE_SURFACE = "#1E1E1E";
+    private static final String LIGHT_MODE_TEXT_SECONDARY = "#6E6257";
+
+    // UI Components
     private LinearLayout achievementsContainer;
     private SessionManager sessionManager;
     private boolean isDarkMode;
 
+    // State
     private List<Badges> allBadges = new ArrayList<>();
     private String selectedFilter = "All";
 
@@ -42,40 +56,25 @@ public class AchievementsActivity extends AppCompatActivity {
 
         selectedFilter = getSavedAchievementsFilter();
 
-        findViewById(R.id.navHome).setOnClickListener(v -> {
-            saveLastMainScreen("Home");
+        setupNavigationListeners();
 
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("start_screen", "Home");
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-            finish();
-        });
+        loadUserBadges();
+    }
 
-        findViewById(R.id.navAwards).setOnClickListener(v -> {
-            // already here
-        });
+    /**
+     * Initializes click listeners for the bottom navigation bar.
+     */
+    private void setupNavigationListeners() {
+        findViewById(R.id.navHome).setOnClickListener(v -> navigateToMainScreen("Home"));
+        findViewById(R.id.navAwards).setOnClickListener(v -> { /* Current Screen */ });
+        findViewById(R.id.navGuardian).setOnClickListener(v -> navigateToMainScreen("Guardian"));
+        findViewById(R.id.navSettings).setOnClickListener(v -> navigateToMainScreen("Settings"));
+    }
 
-        findViewById(R.id.navGuardian).setOnClickListener(v -> {
-            saveLastMainScreen("Guardian");
-
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("start_screen", "Guardian");
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-            finish();
-        });
-
-        findViewById(R.id.navSettings).setOnClickListener(v -> {
-            saveLastMainScreen("Settings");
-
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("start_screen", "Settings");
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-            finish();
-        });
-
+    /**
+     * Fetches badge data from the repository and merges it with the local catalog.
+     */
+    private void loadUserBadges() {
         int userId = (int) sessionManager.getUserId();
 
         if (userId == -1) {
@@ -100,63 +99,40 @@ public class AchievementsActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Adjusts the UI appearance based on the user's dark mode preference.
+     */
     private void applyTheme() {
         if (isDarkMode) {
             View root = findViewById(R.id.achievementsRoot);
-            if (root != null) root.setBackgroundColor(Color.parseColor("#121212"));
+            if (root != null) root.setBackgroundColor(Color.parseColor(DARK_MODE_BG));
             
-            achievementsContainer.setBackgroundColor(Color.parseColor("#121212"));
+            achievementsContainer.setBackgroundColor(Color.parseColor(DARK_MODE_BG));
             
             TextView title = findViewById(R.id.tvAchievementsTitle);
             if (title != null) title.setTextColor(Color.WHITE);
 
             View filterSpace = findViewById(R.id.filterSpace);
-            if (filterSpace != null) filterSpace.setBackgroundColor(Color.parseColor("#1E1E1E"));
+            if (filterSpace != null) filterSpace.setBackgroundColor(Color.parseColor(DARK_MODE_SURFACE));
 
             View bottomNav = findViewById(R.id.bottomNavContainer);
             if (bottomNav != null) {
                 GradientDrawable shape = new GradientDrawable();
                 shape.setShape(GradientDrawable.RECTANGLE);
                 shape.setCornerRadius(dpToPx(28));
-                shape.setColor(Color.parseColor("#1E1E1E"));
+                shape.setColor(Color.parseColor(DARK_MODE_SURFACE));
                 bottomNav.setBackground(shape);
             }
         }
     }
 
-    private int dpToPx(int dp) {
-        float density = getResources().getDisplayMetrics().density;
-        return Math.round((float) dp * density);
-    }
-
-    private SharedPreferences getNavPrefs() {
-        return getSharedPreferences(NAV_PREFS, MODE_PRIVATE);
-    }
-
-    private void saveLastMainScreen(String screen) {
-        getNavPrefs().edit().putString(KEY_LAST_MAIN_SCREEN, screen).apply();
-    }
-
-    private void saveAchievementsFilter(String filter) {
-        getNavPrefs().edit().putString(KEY_ACHIEVEMENTS_FILTER, filter).apply();
-    }
-
-    private String getSavedAchievementsFilter() {
-        return getNavPrefs().getString(KEY_ACHIEVEMENTS_FILTER, "All");
-    }
-
-    private void showError(String message) {
-        achievementsContainer.removeAllViews();
-
-        TextView errorView = new TextView(this);
-        errorView.setText("Error: " + message);
-        errorView.setTextSize(18f);
-        errorView.setTextColor(Color.RED);
-        errorView.setPadding(20, 40, 20, 20);
-
-        achievementsContainer.addView(errorView);
-    }
-
+    /**
+     * Algorithm: Programmatically constructs the list of badges based on the active filter.
+     * 1. Clears existing views.
+     * 2. Adds the filter dropdown at the top.
+     * 3. Iterates through filtered badges and builds UI rows (Title, Description, Icon).
+     * 4. Handles the "Empty State" if no badges match the filter.
+     */
     private void showBadges() {
         achievementsContainer.removeAllViews();
 
@@ -165,91 +141,83 @@ public class AchievementsActivity extends AppCompatActivity {
         List<Badges> filteredBadges = getFilteredBadges();
 
         if (filteredBadges.isEmpty()) {
-            TextView empty = new TextView(this);
-
-            if ("Unlocked".equals(selectedFilter)) {
-                empty.setText("No unlocked badges found.");
-            } else if ("Locked".equals(selectedFilter)) {
-                empty.setText("No locked badges found.");
-            } else {
-                empty.setText("No badges available yet.");
-            }
-
-            empty.setTextSize(22f);
-            empty.setTextColor(isDarkMode ? Color.LTGRAY : Color.parseColor("#6E6257"));
-            empty.setGravity(Gravity.CENTER);
-            empty.setPadding(0, 100, 0, 0);
-
-            achievementsContainer.addView(empty);
+            displayEmptyState();
             return;
         }
 
         for (Badges badge : filteredBadges) {
-            boolean unlocked = badge.isUnlocked();
-
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, 28, 0, 28);
-            row.setAlpha(unlocked ? 1f : 0.55f);
-
-            LinearLayout textLayout = new LinearLayout(this);
-            textLayout.setOrientation(LinearLayout.VERTICAL);
-
-            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
-                    0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    1f
-            );
-            textLayout.setLayoutParams(textParams);
-
-            TextView title = new TextView(this);
-            title.setText(badge.getName());
-            title.setTextSize(24f);
-            title.setTypeface(null, Typeface.BOLD);
-            title.setTextColor(unlocked
-                    ? (isDarkMode ? Color.WHITE : Color.parseColor("#2F241C"))
-                    : Color.parseColor("#BDBDBD"));
-
-            TextView description = new TextView(this);
-            description.setText(badge.getDescription());
-            description.setTextSize(18f);
-            description.setPadding(0, 8, 0, 0);
-            description.setTextColor(unlocked
-                    ? (isDarkMode ? Color.LTGRAY : Color.parseColor("#6E6257"))
-                    : Color.parseColor("#D0D0D0"));
-
-            TextView status = new TextView(this);
-            status.setText(unlocked ? "Unlocked" : "Locked");
-            status.setTextSize(15f);
-            status.setPadding(0, 10, 0, 0);
-            status.setTextColor(unlocked
-                    ? Color.parseColor("#2E7D32")
-                    : Color.parseColor("#9E9E9E"));
-
-            textLayout.addView(title);
-            textLayout.addView(description);
-            textLayout.addView(status);
-
-            row.addView(textLayout);
-
-            TextView icon = new TextView(this);
-            icon.setText(unlocked ? "🏆" : "🔒");
-            icon.setTextSize(30f);
-            icon.setPadding(20, 0, 0, 0);
-            row.addView(icon);
-
-            achievementsContainer.addView(row);
-
-            View divider = new View(this);
-            divider.setLayoutParams(new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    2
-            ));
-            divider.setBackgroundColor(isDarkMode ? Color.DKGRAY : Color.parseColor("#D8D2C8"));
-
-            achievementsContainer.addView(divider);
+            addBadgeRow(badge);
         }
+    }
+
+    private void addBadgeRow(Badges badge) {
+        boolean unlocked = badge.isUnlocked();
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, 28, 0, 28);
+        row.setAlpha(unlocked ? 1f : 0.55f);
+
+        LinearLayout textLayout = new LinearLayout(this);
+        textLayout.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        textLayout.setLayoutParams(textParams);
+
+        TextView title = new TextView(this);
+        title.setText(badge.getName());
+        title.setTextSize(24f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(unlocked ? (isDarkMode ? Color.WHITE : Color.parseColor("#2F241C")) : Color.parseColor("#BDBDBD"));
+
+        TextView description = new TextView(this);
+        description.setText(badge.getDescription());
+        description.setTextSize(18f);
+        description.setPadding(0, 8, 0, 0);
+        description.setTextColor(unlocked ? (isDarkMode ? Color.LTGRAY : Color.parseColor(LIGHT_MODE_TEXT_SECONDARY)) : Color.parseColor("#D0D0D0"));
+
+        TextView status = new TextView(this);
+        status.setText(unlocked ? "Unlocked" : "Locked");
+        status.setTextSize(15f);
+        status.setPadding(0, 10, 0, 0);
+        status.setTextColor(unlocked ? Color.parseColor("#2E7D32") : Color.parseColor("#9E9E9E"));
+
+        textLayout.addView(title);
+        textLayout.addView(description);
+        textLayout.addView(status);
+
+        row.addView(textLayout);
+
+        TextView icon = new TextView(this);
+        icon.setText(unlocked ? "🏆" : "🔒");
+        icon.setTextSize(30f);
+        icon.setPadding(20, 0, 0, 0);
+        row.addView(icon);
+
+        achievementsContainer.addView(row);
+
+        addDivider();
+    }
+
+    private void addDivider() {
+        View divider = new View(this);
+        divider.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2));
+        divider.setBackgroundColor(isDarkMode ? Color.DKGRAY : Color.parseColor("#D8D2C8"));
+        achievementsContainer.addView(divider);
+    }
+
+    private void displayEmptyState() {
+        TextView empty = new TextView(this);
+        String emptyText = "No badges available yet.";
+        if ("Unlocked".equals(selectedFilter)) emptyText = "No unlocked badges found.";
+        else if ("Locked".equals(selectedFilter)) emptyText = "No locked badges found.";
+
+        empty.setText(emptyText);
+        empty.setTextSize(22f);
+        empty.setTextColor(isDarkMode ? Color.LTGRAY : Color.parseColor(LIGHT_MODE_TEXT_SECONDARY));
+        empty.setGravity(Gravity.CENTER);
+        empty.setPadding(0, 100, 0, 0);
+        achievementsContainer.addView(empty);
     }
 
     private void addFilterDropdown() {
@@ -278,12 +246,51 @@ public class AchievementsActivity extends AppCompatActivity {
                 showBadges();
                 return true;
             });
-
             popupMenu.show();
         });
 
         filterRow.addView(filterButton);
         achievementsContainer.addView(filterRow);
+    }
+
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round((float) dp * density);
+    }
+
+    private void navigateToMainScreen(String targetScreen) {
+        saveLastMainScreen(targetScreen);
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.putExtra("start_screen", targetScreen);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+        finish();
+    }
+
+    private SharedPreferences getNavPrefs() {
+        return getSharedPreferences(NAV_PREFS, MODE_PRIVATE);
+    }
+
+    private void saveLastMainScreen(String screen) {
+        getNavPrefs().edit().putString(KEY_LAST_MAIN_SCREEN, screen).apply();
+    }
+
+    private void saveAchievementsFilter(String filter) {
+        getNavPrefs().edit().putString(KEY_ACHIEVEMENTS_FILTER, filter).apply();
+    }
+
+    private String getSavedAchievementsFilter() {
+        return getNavPrefs().getString(KEY_ACHIEVEMENTS_FILTER, "All");
+    }
+
+    private void showError(String message) {
+        achievementsContainer.removeAllViews();
+        TextView errorView = new TextView(this);
+        errorView.setText("Error: " + message);
+        errorView.setTextSize(18f);
+        errorView.setTextColor(Color.RED);
+        errorView.setPadding(20, 40, 20, 20);
+        achievementsContainer.addView(errorView);
     }
 
     private List<Badges> getFilteredBadges() {
