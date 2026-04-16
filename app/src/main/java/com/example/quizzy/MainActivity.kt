@@ -1374,8 +1374,13 @@ fun SettingsScreen() {
     val sessionManager = remember { SessionManager(context) }
 
     val prefs = context.getSharedPreferences("quizzy_settings", Context.MODE_PRIVATE)
+
     var volume by remember {
         mutableStateOf(prefs.getFloat("music_volume", 0.2f))
+    }
+
+    var sfxVolume by remember {
+        mutableStateOf(prefs.getFloat("sfx_volume", 0.7f))
     }
 
     Column(
@@ -1445,6 +1450,43 @@ fun SettingsScreen() {
 
                 Text(
                     text = "${(volume * 100).toInt()}%",
+                    fontSize = 14.sp,
+                    color = Color(0xFF7B6A58)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            shadowElevation = 4.dp
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+
+                Text(
+                    text = "Sound Effects Volume",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF5A4A3B)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                androidx.compose.material3.Slider(
+                    value = sfxVolume,
+                    onValueChange = { newVolume ->
+                        sfxVolume = newVolume
+                        MusicManager.setSFXVolume(context, newVolume)
+                        prefs.edit().putFloat("sfx_volume", newVolume).apply()
+                    },
+                    valueRange = 0f..1f
+                )
+
+                Text(
+                    text = "${(sfxVolume * 100).toInt()}%",
                     fontSize = 14.sp,
                     color = Color(0xFF7B6A58)
                 )
