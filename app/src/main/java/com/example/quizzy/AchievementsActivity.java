@@ -102,9 +102,13 @@ public class AchievementsActivity extends AppCompatActivity {
 
     /**
      * Adjusts the UI appearance based on the user's dark mode preference.
+     * Also sets the status bar color to match the background to remove the default purple bar.
      */
     private void applyTheme() {
         if (isDarkMode) {
+            getWindow().setStatusBarColor(Color.parseColor(DARK_MODE_BG));
+            getWindow().getDecorView().setSystemUiVisibility(0);
+
             View root = findViewById(R.id.achievementsRoot);
             if (root != null) root.setBackgroundColor(Color.parseColor(DARK_MODE_BG));
             
@@ -124,6 +128,9 @@ public class AchievementsActivity extends AppCompatActivity {
                 shape.setColor(Color.parseColor(DARK_MODE_SURFACE));
                 bottomNav.setBackground(shape);
             }
+        } else {
+            getWindow().setStatusBarColor(Color.parseColor("#FFFBF2"));
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
     }
 
