@@ -3,15 +3,16 @@ package com.quizzy.backend.controller;
 import com.quizzy.backend.model.Badge;
 import com.quizzy.backend.model.Student;
 import com.quizzy.backend.model.QuizSession;
+import com.quizzy.backend.model.UserBadge;
 import com.quizzy.backend.repository.BadgeRepository;
 import com.quizzy.backend.repository.StudentRepository;
 import com.quizzy.backend.repository.QuizSessionRepository;
+import com.quizzy.backend.repository.UserBadgeRepository;
 import org.json.JSONArray;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +21,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Controller responsible for managing student scores and achievement unlocking logic.
+ * Ensures that score updates and badge achievements are synchronized between
+ * the 'students' table and the 'user_badges' table.
+ */
 @RestController
 @RequestMapping("/api/score")
 @CrossOrigin(origins = "*")
@@ -28,22 +34,27 @@ public class ScoreController {
     private final StudentRepository studentRepository;
     private final BadgeRepository badgeRepository;
     private final QuizSessionRepository sessionRepository;
+    private final UserBadgeRepository userBadgeRepository;
 
     public ScoreController(StudentRepository studentRepository, 
                            BadgeRepository badgeRepository,
-                           QuizSessionRepository sessionRepository) {
+                           QuizSessionRepository sessionRepository,
+                           UserBadgeRepository userBadgeRepository) {
         this.studentRepository = studentRepository;
         this.badgeRepository = badgeRepository;
         this.sessionRepository = sessionRepository;
+        this.userBadgeRepository = userBadgeRepository;
     }
 
+    /**
+     * Retrieves the score data and recent session history for a specific user.
+     */
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> getUserScore(@PathVariable Integer userId) {
         try {
             Student student = studentRepository.findByUserId(userId)
                     .orElseThrow(() -> new Exception("Student not found for user_id: " + userId));
             
-            // Logic to get the last 15 quiz sessions for further display
             List<QuizSession> last15Sessions = sessionRepository.findTop15ByUserIdAndCompletionIsNotNullOrderByCompletionDesc(userId);
 
             LocalDateTime now = LocalDateTime.now();
@@ -91,37 +102,22 @@ public class ScoreController {
         return scoreMap;
     }
 
-    /*
-    // TESTING ENDPOINT: Uncomment the following method to test the retrieval of the last 15 quiz sessions.
-    @GetMapping("/test/history/{userId}")
-    public ResponseEntity<?> testGetLast15Sessions(@PathVariable Integer userId) {
-        try {
-            List<QuizSession> last15Sessions = sessionRepository.findTop15ByUserIdAndCompletionIsNotNullOrderByCompletionDesc(userId);
-            return ResponseEntity.ok(last15Sessions);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
-        }
-    }
-    */
-
+    /**
+     * Updates a user's score and evaluates if any new achievements have been earned.
+     * Synchronizes badge unlocking across all relevant database tables.
+     */
     @PostMapping("/update")
     @Transactional
     public ResponseEntity<?> updateScore(@RequestBody Map<String, Object> data) {
         try {
-            Object userIdObj = data.get("user_id") != null ? data.get("user_id") : data.get("userId");
-            if (userIdObj == null) {
-                return ResponseEntity.badRequest().body(Map.of("error", "user_id is required"));
-            }
-            Integer userId = Integer.valueOf(userIdObj.toString());
+            Integer userId = getIntFromMap(data, "user_id", "userId");
+            if (userId == null) return ResponseEntity.badRequest().body(Map.of("error", "user_id is required"));
             
-            Object pointsObj = data.get("points");
-            if (pointsObj == null) {
-                return ResponseEntity.badRequest().body(Map.of("error", "points is required"));
-            }
-            Integer pointsEarned = Integer.valueOf(pointsObj.toString());
+            Integer pointsEarned = getIntFromMap(data, "points", null);
+            if (pointsEarned == null) return ResponseEntity.badRequest().body(Map.of("error", "points is required"));
 
-            Object totalQuestionsObj = data.get("total_questions");
-            Integer totalQuestions = totalQuestionsObj != null ? Integer.valueOf(totalQuestionsObj.toString()) : 0;
+            Integer totalQuestions = getIntFromMap(data, "total_questions", null);
+            if (totalQuestions == null) totalQuestions = 0;
 
             // 1. Update Student record
             Student student = studentRepository.findByUserId(userId)
@@ -131,86 +127,11 @@ public class ScoreController {
             student.setLastLogin(LocalDateTime.now());
 
             // 2. Handle Quiz Session
-            Object sessionIdObj = data.get("session_id") != null ? data.get("session_id") : data.get("sessionId");
-            if (sessionIdObj != null) {
-                Long sessionId = Long.valueOf(sessionIdObj.toString());
-                Optional<QuizSession> sessionOpt = sessionRepository.findById(sessionId);
-                if (sessionOpt.isPresent()) {
-                    QuizSession session = sessionOpt.get();
-                    session.setCompletion(LocalDateTime.now());
-                    session.setFinalscore(pointsEarned);
-                    sessionRepository.save(session);
-                }
-            }
+            updateQuizSession(data, pointsEarned);
 
-            // 3. Badge Logic
-            String currentBadgesJson = student.getEarnedBadges();
-            if (currentBadgesJson == null || currentBadgesJson.trim().isEmpty() || currentBadgesJson.equals("null")) {
-                currentBadgesJson = "[]";
-            }
-            
-            JSONArray earnedBadgesArray = new JSONArray(currentBadgesJson);
-            List<Integer> earnedIds = new ArrayList<>();
-            for (int i = 0; i < earnedBadgesArray.length(); i++) {
-                earnedIds.add(earnedBadgesArray.getInt(i));
-            }
+            // 3. Badge Logic (Single Source of Truth synchronization)
+            List<Badge> newlyUnlocked = processAchievements(student, pointsEarned, totalQuestions, userId);
 
-            List<QuizSession> userSessions = sessionRepository.findAll().stream()
-                    .filter(s -> s.getUserId() != null && s.getUserId().equals(userId))
-                    .filter(s -> s.getCompletion() != null)
-                    .collect(Collectors.toList());
-
-            List<Badge> allBadges = badgeRepository.findAll();
-            List<Badge> newlyUnlocked = new ArrayList<>();
-
-            double scorePercent = totalQuestions > 0 ? (pointsEarned * 100.0) / totalQuestions : 0;
-
-            for (Badge badge : allBadges) {
-                if (earnedIds.contains(badge.getBadgeId())) continue;
-
-                boolean shouldUnlock = false;
-                String reqType = badge.getRequirementType();
-                Integer reqVal = badge.getRequirementValue();
-
-                switch (reqType.toUpperCase()) {
-                    case "QUIZ_COUNT":
-                        if (userSessions.size() >= reqVal) shouldUnlock = true;
-                        break;
-                    case "SCORE_PERCENT":
-                        if (scorePercent >= reqVal) shouldUnlock = true;
-                        break;
-                    case "POINTS":
-                        if (student.getTotalScore() >= reqVal) shouldUnlock = true;
-                        break;
-                    case "LEVELS_COUNT":
-                        if (userSessions.size() >= reqVal) shouldUnlock = true;
-                        break;
-                    case "STREAK":
-                        if (pointsEarned == totalQuestions && totalQuestions > 0) {
-                            shouldUnlock = true;
-                        }
-                        break;
-                    case "IMPROVEMENT":
-                        if (userSessions.size() >= 2) {
-                            QuizSession lastSession = userSessions.get(userSessions.size() - 2);
-                            if (pointsEarned > (lastSession.getFinalscore() != null ? lastSession.getFinalscore() : 0)) {
-                                shouldUnlock = true;
-                            }
-                        }
-                        break;
-                    case "BADGE_COUNT":
-                        if (earnedIds.size() >= reqVal) shouldUnlock = true;
-                        break;
-                }
-
-                if (shouldUnlock) {
-                    earnedBadgesArray.put(badge.getBadgeId());
-                    newlyUnlocked.add(badge);
-                    earnedIds.add(badge.getBadgeId());
-                }
-            }
-
-            student.setEarnedBadges(earnedBadgesArray.toString());
             studentRepository.save(student);
 
             return ResponseEntity.ok(Map.of(
@@ -222,5 +143,103 @@ public class ScoreController {
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /**
+     * Algorithm: Evaluates all available badges against the user's current performance and history.
+     * Unlocked badges are saved both in the Student's JSON field and the UserBadge join table.
+     */
+    private List<Badge> processAchievements(Student student, int pointsEarned, int totalQuestions, Integer userId) {
+        String currentBadgesJson = student.getEarnedBadges();
+        if (currentBadgesJson == null || currentBadgesJson.trim().isEmpty() || currentBadgesJson.equals("null")) {
+            currentBadgesJson = "[]";
+        }
+
+        JSONArray earnedBadgesArray = new JSONArray(currentBadgesJson);
+        List<Integer> earnedIds = new ArrayList<>();
+        for (int i = 0; i < earnedBadgesArray.length(); i++) {
+            earnedIds.add(earnedBadgesArray.getInt(i));
+        }
+
+        List<QuizSession> userSessions = sessionRepository.findAll().stream()
+                .filter(s -> s.getUserId() != null && s.getUserId().equals(userId))
+                .filter(s -> s.getCompletion() != null)
+                .collect(Collectors.toList());
+
+        List<Badge> allBadges = badgeRepository.findAll();
+        List<Badge> newlyUnlocked = new ArrayList<>();
+
+        double scorePercent = totalQuestions > 0 ? (pointsEarned * 100.0) / totalQuestions : 0;
+
+        for (Badge badge : allBadges) {
+            if (earnedIds.contains(badge.getBadgeId())) continue;
+
+            if (checkBadgeRequirement(badge, student, pointsEarned, totalQuestions, scorePercent, userSessions, earnedIds)) {
+                // Add to newly unlocked list for response
+                newlyUnlocked.add(badge);
+
+                // Persist in Student JSON column
+                earnedBadgesArray.put(badge.getBadgeId());
+                earnedIds.add(badge.getBadgeId());
+
+                // Persist in user_badges join table (Consistency Fix)
+                persistUserBadge(userId, badge.getBadgeId());
+            }
+        }
+
+        student.setEarnedBadges(earnedBadgesArray.toString());
+        return newlyUnlocked;
+    }
+
+    private boolean checkBadgeRequirement(Badge badge, Student student, int points, int total, double percent, List<QuizSession> sessions, List<Integer> earnedIds) {
+        String type = badge.getRequirementType().toUpperCase();
+        Integer val = badge.getRequirementValue();
+
+        switch (type) {
+            case "QUIZ_COUNT": return sessions.size() >= val;
+            case "SCORE_PERCENT": return percent >= val;
+            case "POINTS": return student.getTotalScore() >= val;
+            case "LEVELS_COUNT": return sessions.size() >= val;
+            case "STREAK": return points == total && total > 0;
+            case "IMPROVEMENT":
+                if (sessions.size() < 2) return false;
+                QuizSession last = sessions.get(sessions.size() - 2);
+                return points > (last.getFinalscore() != null ? last.getFinalscore() : 0);
+            case "BADGE_COUNT": return earnedIds.size() >= val;
+            default: return false;
+        }
+    }
+
+    /**
+     * Ensures the UserBadge join table is updated whenever a badge is unlocked via score synchronization.
+     */
+    private void persistUserBadge(Integer userId, Integer badgeId) {
+        Optional<UserBadge> existing = userBadgeRepository.findByUserIdAndBadgeId(userId, badgeId);
+        if (existing.isEmpty()) {
+            UserBadge ub = new UserBadge();
+            ub.setUserId(userId);
+            ub.setBadgeId(badgeId);
+            ub.setUnlocked(true);
+            ub.setUnlockedAt(LocalDateTime.now());
+            userBadgeRepository.save(ub);
+        }
+    }
+
+    private void updateQuizSession(Map<String, Object> data, Integer points) {
+        Object sessionIdObj = data.get("session_id") != null ? data.get("session_id") : data.get("sessionId");
+        if (sessionIdObj != null) {
+            Long sessionId = Long.valueOf(sessionIdObj.toString());
+            sessionRepository.findById(sessionId).ifPresent(session -> {
+                session.setCompletion(LocalDateTime.now());
+                session.setFinalscore(points);
+                sessionRepository.save(session);
+            });
+        }
+    }
+
+    private Integer getIntFromMap(Map<String, Object> map, String key1, String key2) {
+        Object val = map.get(key1);
+        if (val == null && key2 != null) val = map.get(key2);
+        return val != null ? Integer.valueOf(val.toString()) : null;
     }
 }

@@ -32,6 +32,7 @@ public class LevelInstructionController {
                 .orElseThrow(() -> new RuntimeException("No instruction found for grade level: " + gradeLevel));
 
         String prompt = instruction.getPromptTemplate() + " " + instruction.getInstructionText();
-        return quizService.generateAndStore(prompt, userId);
+        // Fixed: Pass gradeLevel as the third argument to match updated QuizService method signature
+        return quizService.generateAndStore(prompt, userId, gradeLevel);
     }
 }
