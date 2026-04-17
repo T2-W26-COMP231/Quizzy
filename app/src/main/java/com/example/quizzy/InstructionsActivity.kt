@@ -127,6 +127,9 @@ fun InstructionsScreen(
             val (questions, sessionId) = fetchGeneratedQuizFromBackend(prompt, userId)
             
             if (questions.isNotEmpty()) {
+                // Feature: Log generated questions to console for developer review
+                logQuestionsToConsole(questions)
+                
                 setupQuizSession(questions, sessionId)
                 
                 // Navigate to the actual quiz
@@ -324,4 +327,21 @@ private fun parseQuestions(questionsArray: JSONArray): List<DisplayQuestion> {
     }
 
     return questions
+}
+
+/**
+ * Formats and prints the generated quiz questions to the Android Logcat for debugging.
+ */
+private fun logQuestionsToConsole(questions: List<DisplayQuestion>) {
+    if (questions.isEmpty()) return
+    
+    Log.d(InstructionsUI.TAG, "--- GENERATED QUIZ QUESTIONS ---")
+    questions.forEachIndexed { index, q ->
+        Log.d(InstructionsUI.TAG, "Q${index + 1}: ${q.questionText}")
+        q.options.forEachIndexed { i, opt ->
+            Log.d(InstructionsUI.TAG, "   ${('A' + i)}. $opt")
+        }
+        Log.d(InstructionsUI.TAG, "   Correct Answer: ${q.correctAnswer}")
+    }
+    Log.d(InstructionsUI.TAG, "--------------------------------")
 }
