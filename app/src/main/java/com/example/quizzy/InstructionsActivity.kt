@@ -118,22 +118,26 @@ fun InstructionsScreen(
         errorMessage = ""
 
         try {
+            // Feature: Print selected level to console when creating questions
+            System.out.println("Creating questions for Grade Level: $gradeLevel")
+
             // Optional instruction text (can be shown if UI supports it in future)
             fetchInstructionFromBackend(gradeLevel)
 
             val prompt = buildPromptForGrade(gradeLevel)
             val userId = sessionManager.getUserId().toInt()
             
-            val (questions, sessionId) = fetchGeneratedQuizFromBackend(prompt, userId)
+            val (questions, sessionId) = fetchGeneratedQuizFromBackend(prompt, userId, gradeLevel)
             
             if (questions.isNotEmpty()) {
-                // Feature: Log generated questions to standard console output
+                // Feature: Log generated questions to standard console output with specific format
                 printQuestionsToConsole(questions)
                 
                 setupQuizSession(questions, sessionId)
                 
                 // Navigate to the actual quiz
                 val intent = Intent(context, QuizActivity::class.java)
+                intent.putExtra("GRADE_LEVEL", gradeLevel)
                 context.startActivity(intent)
                 (context as? InstructionsActivity)?.finish()
             } else {
@@ -249,10 +253,10 @@ suspend fun fetchInstructionFromBackend(gradeLevel: Int): String {
  * Network Call: Triggers the AI quiz generation service.
  * Returns a list of questions and a unique session identifier.
  */
-suspend fun fetchGeneratedQuizFromBackend(prompt: String, userId: Int): Pair<List<DisplayQuestion>, Long> {
+suspend fun fetchGeneratedQuizFromBackend(prompt: String, userId: Int, level: Int): Pair<List<DisplayQuestion>, Long> {
     return withContext(Dispatchers.IO) {
         val encodedPrompt = URLEncoder.encode(prompt, "UTF-8")
-        val url = URL("${InstructionsUI.BACKEND_BASE_URL}/quiz/generate?prompt=$encodedPrompt&userId=$userId")
+        val url = URL("${InstructionsUI.BACKEND_BASE_URL}/quiz/generate?prompt=$encodedPrompt&userId=$userId&level=$level")
         val connection = url.openConnection() as HttpURLConnection
 
         connection.requestMethod = "POST"
@@ -331,18 +335,19 @@ private fun parseQuestions(questionsArray: JSONArray): List<DisplayQuestion> {
 
 /**
  * Algorithm: Formats and prints the generated quiz questions to the standard system output (Console).
- * This uses println() which typically appears in the "Run" or "Console" tab of IDEs.
+ * This uses System.out.println() which appears in the standard process console.
+ * The format matches exactly the user's request.
  */
 private fun printQuestionsToConsole(questions: List<DisplayQuestion>) {
     if (questions.isEmpty()) return
     
-    println("\n--- GENERATED QUIZ QUESTIONS (CONSOLE OUTPUT) ---")
+    System.out.println("\n=== GENERATED QUIZ QUESTIONS ===")
     questions.forEachIndexed { index, q ->
-        println("Q${index + 1}: ${q.questionText}")
+        System.out.println("Question ${index + 1}: ${q.questionText}")
         q.options.forEachIndexed { i, opt ->
-            println("   ${('A' + i)}. $opt")
+            System.out.println("  ${i + 1}) $opt")
         }
-        println("   Correct Answer: ${q.correctAnswer}\n")
+        System.out.println("  [CORRECT]: ${q.correctAnswer}\n")
     }
-    println("--------------------------------------------------\n")
+    System.out.println("================================\n")
 }

@@ -14,8 +14,11 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.example.quizzy.network.NetworkClient;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.snackbar.Snackbar;
+
+import org.json.JSONObject;
 
 import java.util.List;
 import java.util.Locale;
@@ -155,14 +158,24 @@ public class QuizActivity extends AppCompatActivity {
 
     /**
      * Algorithm: Validates the user's selection against the correct answer.
-     * 1. Checks if an option is selected.
-     * 2. Plays a UI feedback sound.
-     * 3. Compares the selected text with the 'correctAnswer' field.
-     * 4. Updates the score and displays a success/failure card.
+     * 1. Sends "Processing answer..." log to backend console.
+     * 2. Checks if an option is selected.
+     * 3. Plays a UI feedback sound.
+     * 4. Compares the selected text with the 'correctAnswer' field.
+     * 5. Updates the score and displays a success/failure card.
      */
     private void validateAnswer() {
         if (answered) return;
-        
+
+        // Log to Backend Console
+        new Thread(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("message", "Processing answer...");
+                NetworkClient.postSync("/log", body);
+            } catch (Exception ignored) {}
+        }).start();
+
         MusicManager.INSTANCE.playClickSound(this);
 
         int selectedId = radioGroup.getCheckedRadioButtonId();
@@ -224,11 +237,10 @@ public class QuizActivity extends AppCompatActivity {
     }
 
     /**
-     * Calculates achievements and transitions to the results activity.
+     * Transitions to the results activity. Badge calculation is now handled
+     * by the backend during score synchronization to ensure a single source of truth.
      */
     private void openResultsScreen() {
-        BadgeManager.checkAndUnlockBadges(this, score, questionList.size(), gradeLevel);
-
         Intent intent = new Intent(QuizActivity.this, ResultActivity.class);
         intent.putExtra("score", score);
         intent.putExtra("totalQuestions", questionList.size());
