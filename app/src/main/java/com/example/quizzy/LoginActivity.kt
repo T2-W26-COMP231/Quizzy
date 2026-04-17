@@ -97,7 +97,10 @@ class LoginActivity : ComponentActivity() {
      * Helper to navigate to main screen and finish login activity.
      */
     private fun navigateToMain() {
-        startActivity(Intent(this, MainActivity::class.java))
+        val intent = Intent(this, MainActivity::class.java)
+        intent.putExtra("start_screen", "Home")
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
         finish()
     }
 }
